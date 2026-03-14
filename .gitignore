@@ -1,0 +1,52 @@
+# Terraform state files
+*.tfstate
+*.tfstate.backup
+crash.log
+
+# Terraform lock file
+.terraform.lock.hcl
+
+# Ignore real variable files
+*.tfvars
+
+# But allow example/template versions
+!*.tfvars.example
+
+# Terraform plan output
+*.tfplan
+
+# Override files (custom local settings)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Terraform directories
+.terraform/
+
+# Sensitive files
+*.pem
+*.key
+*.tfvars  # Ignore Terraform variable files containing secrets
+
+# Environment / secret files
+*.env
+.env
+cf-token
+cf-token.*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*~
+
+# MacOS files
+.DS_Store
+
+# Linux files
+*.lock
