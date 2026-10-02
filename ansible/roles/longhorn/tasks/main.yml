@@ -1,0 +1,47 @@
+---
+- name: Install open-iscsi [Debian/Ubuntu]
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
+  ansible.builtin.apt:
+    name: open-iscsi
+    state: present
+    update_cache: true
+
+- name: Install iscsi-initiator-utils [RHEL]
+  when: ansible_facts['os_family'] == 'RedHat'
+  ansible.builtin.dnf:
+    name: iscsi-initiator-utils
+    state: present
+
+- name: Enable and start iscsid
+  ansible.builtin.systemd:
+    name: iscsid
+    enabled: true
+    state: started
+
+- name: Install Helm
+  ansible.builtin.shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Add Longhorn Helm repo
+  ansible.builtin.shell: |
+    helm repo add longhorn https://charts.longhorn.io
+    helm repo update
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install Longhorn
+  ansible.builtin.shell: |
+    helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --create-namespace \
+      --wait
+  delegate_to: localhost
+  become: false
+  run_once: true
+

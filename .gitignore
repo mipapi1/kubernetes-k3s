@@ -3,6 +3,9 @@
 *.tfstate.backup
 crash.log
 
+# Terraform debug logs (TF_LOG) can contain API tokens
+terraform.log
+
 # Terraform lock file
 .terraform.lock.hcl
 
@@ -31,7 +34,6 @@ terraform.rc
 # Sensitive files
 *.pem
 *.key
-*.tfvars  # Ignore Terraform variable files containing secrets
 
 # Environment / secret files
 *.env

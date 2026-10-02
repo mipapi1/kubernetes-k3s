@@ -1,0 +1,47 @@
+---
+- name: Install Helm
+  ansible.builtin.shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Add NFS CSI driver Helm repo
+  ansible.builtin.shell: |
+    helm repo add csi-driver-nfs https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+    helm repo update
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install NFS CSI driver
+  ansible.builtin.shell: |
+    helm upgrade --install csi-driver-nfs csi-driver-nfs/csi-driver-nfs \
+      --namespace kube-system \
+      --set kubeletDir=/var/lib/kubelet \
+      --wait
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Apply NFS StorageClass
+  ansible.builtin.shell: |
+    kubectl apply -f - <<'EOF'
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: nfs-nas
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+    provisioner: nfs.csi.k8s.io
+    parameters:
+      server: {{ nfs_server }}
+      share: {{ nfs_share }}
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+    EOF
+  delegate_to: localhost
+  become: false
+  run_once: true

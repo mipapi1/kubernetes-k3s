@@ -1,0 +1,15 @@
+---
+# Install into ./collections (see ansible.cfg):
+#   ansible-galaxy collection install -r requirements.yml
+# To update k3s-ansible, bump the version below and re-run with --force.
+collections:
+  # Upstream k3s install playbooks/roles: https://github.com/k3s-io/k3s-ansible
+  - name: https://github.com/k3s-io/k3s-ansible.git
+    type: git
+    version: 1.2.2
+  # k3s.orchestration uses ansible.utils.ipwrap but doesn't declare it
+  - name: ansible.utils
+  - name: community.general
+  - name: ansible.posix
+  # Vault lookups in group_vars
+  - name: community.hashi_vault

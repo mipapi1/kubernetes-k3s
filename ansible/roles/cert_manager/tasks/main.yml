@@ -1,0 +1,77 @@
+---
+- name: Install Helm
+  ansible.builtin.shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Add jetstack Helm repo
+  ansible.builtin.shell: |
+    helm repo add jetstack https://charts.jetstack.io
+    helm repo update
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install cert-manager
+  ansible.builtin.shell: |
+    helm upgrade --install cert-manager jetstack/cert-manager \
+      --namespace cert-manager \
+      --create-namespace \
+      --set crds.enabled=true \
+      --wait
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Wait for cert-manager webhook to be ready
+  ansible.builtin.shell: |
+    kubectl rollout status deployment/cert-manager-webhook \
+      --namespace cert-manager \
+      --timeout=120s
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Apply Cloudflare API token secret
+  ansible.builtin.shell: |
+    kubectl apply -f - <<'EOF'
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: cloudflare-api-token
+      namespace: cert-manager
+    type: Opaque
+    stringData:
+      api-token: "{{ cloudflare_api_token }}"
+    EOF
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Apply Let's Encrypt ClusterIssuer
+  ansible.builtin.shell: |
+    kubectl apply -f - <<'EOF'
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: letsencrypt-prod
+    spec:
+      acme:
+        server: https://acme-v02.api.letsencrypt.org/directory
+        email: "{{ cert_manager_email }}"
+        privateKeySecretRef:
+          name: letsencrypt-prod-key
+        solvers:
+        - dns01:
+            cloudflare:
+              apiTokenSecretRef:
+                name: cloudflare-api-token
+                key: api-token
+    EOF
+  delegate_to: localhost
+  become: false
+  run_once: true

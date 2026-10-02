@@ -1,0 +1,6 @@
+venv
+.venv
+.vscode
+.ansible/
+# Installed from requirements.yml
+collections/

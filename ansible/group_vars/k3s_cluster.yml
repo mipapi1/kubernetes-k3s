@@ -1,0 +1,18 @@
+---
+# Vault lookups authenticate with the token from `vault login` (VAULT_TOKEN or
+# ~/.vault-token); deploy.sh makes sure one exists.
+vault_addr: "{{ lookup('ansible.builtin.env', 'VAULT_ADDR') | default('https://vault.agathla.com', true) }}"
+
+k3s_vault_values: "{{ lookup('community.hashi_vault.vault_kv2_get', 'k3s/cluster',
+    engine_mount_point='secret',
+    url=vault_addr,
+    auth_method='token') }}"
+
+token: "{{ k3s_vault_values['secret']['token'] }}"
+
+cloudflare_vault_values: "{{ lookup('community.hashi_vault.vault_kv2_get', 'cloudflare',
+    engine_mount_point='secret',
+    url=vault_addr,
+    auth_method='token') }}"
+
+cloudflare_api_token: "{{ cloudflare_vault_values['secret']['api-token'] }}"
