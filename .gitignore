@@ -52,3 +52,6 @@ cf-token.*
 
 # Linux files
 *.lock
+
+# Claude Code local settings
+.claude/
