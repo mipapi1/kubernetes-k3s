@@ -1,0 +1,4 @@
+---
+# https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+argocd_chart_version: "10.9.6"
+argocd_hostname: argocd.agathla.com

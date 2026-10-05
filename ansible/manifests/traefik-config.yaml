@@ -1,0 +1,23 @@
+# Customizes the Traefik bundled with k3s. HAProxy on OPNsense terminates the
+# client's TLS and re-encrypts to Traefik's websecure entrypoint (:443) on every
+# node ("ssl verify none", like the Proxmox backends). Trust the X-Forwarded-*
+# headers HAProxy sets (client IP, original scheme). No HTTP->HTTPS redirect here:
+# HAProxy's :80 frontend already does that.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        forwardedHeaders:
+          trustedIPs:
+            - 10.0.20.1/32   # OPNsense on the K3s VLAN (HAProxy's source address)
+            - 10.0.20.10/32  # HAProxy VIP
+      websecure:
+        forwardedHeaders:
+          trustedIPs:
+            - 10.0.20.1/32
+            - 10.0.20.10/32

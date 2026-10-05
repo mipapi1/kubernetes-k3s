@@ -1,0 +1,3 @@
+---
+# https://github.com/kubernetes-csi/csi-driver-nfs/tree/master/charts
+nfs_csi_chart_version: "4.13.4"

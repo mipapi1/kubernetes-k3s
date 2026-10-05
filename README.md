@@ -6,10 +6,11 @@ Homelab k3s cluster: three Proxmox VMs that each run the k3s control plane and w
 kubernetes-k3s/
 └── ansible/
     ├── requirements.yml   pinned collections, incl. upstream k3s-io/k3s-ansible (k3s.orchestration)
-    ├── site.yml           NFS prep → upstream k3s install → cert-manager, NFS CSI, Longhorn
+    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD
     ├── inventory.yml      cluster hosts and k3s settings
     ├── group_vars/        secrets looked up from Vault
-    ├── roles/             this repo's own roles (cert_manager, nfs, nfs_csi, longhorn)
+    ├── manifests/         applied by k3s itself (Traefik config)
+    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, cert_manager)
     └── deploy.sh
 ```
 
@@ -29,7 +30,7 @@ All three are k3s servers (embedded etcd, tolerates one node failure) and also r
 
 ## Deploying from scratch
 
-Requires `terraform`, `vault`, `kubectl`, `helm` and Ansible (ansible-core 2.18+, with the `hvac` Python package for the Vault lookups — with pipx: `pipx install ansible-core && pipx inject ansible-core hvac`), and a Vault login at `https://vault.agathla.com`.
+Requires `terraform`, `vault`, `kubectl`, `helm` and Ansible (ansible-core 2.18+, with the `hvac`, `kubernetes` and `netaddr` Python packages — with pipx: `pipx install ansible-core && pipx inject ansible-core hvac kubernetes netaddr`), and a Vault login at `https://vault.agathla.com`.
 
 **1. Create the VMs** — in the proxmox-infrastructure repo:
 
@@ -39,7 +40,7 @@ Requires `terraform`, `vault`, `kubectl`, `helm` and Ansible (ansible-core 2.18+
 
 After rebuilding VMs, clear their old SSH host keys: `ssh-keygen -R 10.0.20.11` (and `.12`, `.13`).
 
-**2. Install k3s and add-ons** — installs the pinned collections, then k3s, NFS CSI (`nfs-nas` StorageClass) and cert-manager. It reuses your `vault login` token and only prompts for Vault credentials if that has expired:
+**2. Install k3s and add-ons** — installs the pinned collections, then k3s, NFS CSI (`nfs-nas` StorageClass), Longhorn (default StorageClass, backups to the NAS) and Argo CD. Chart versions are pinned in each role's `defaults/main.yml`. It reuses your `vault login` token and only prompts for Vault credentials if that has expired:
 
 ```bash
 cd ansible

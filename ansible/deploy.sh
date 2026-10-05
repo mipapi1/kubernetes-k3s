@@ -21,4 +21,9 @@ fi
 # Install/refresh pinned collections (no-op when already present)
 ansible-galaxy collection install -r requirements.yml >/dev/null
 
+# macOS: keep the machine awake while the playbook runs. Sleeping mid-run freezes
+# long Helm installs and leaves dead connections to the API behind.
+if command -v caffeinate >/dev/null; then
+  exec caffeinate -i ansible-playbook site.yml "$@"
+fi
 exec ansible-playbook site.yml "$@"

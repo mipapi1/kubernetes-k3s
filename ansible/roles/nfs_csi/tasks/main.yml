@@ -1,47 +1,36 @@
 ---
-- name: Install Helm
-  ansible.builtin.shell: |
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-  args:
-    creates: /usr/local/bin/helm
-  delegate_to: localhost
-  become: false
-  run_once: true
-
-- name: Add NFS CSI driver Helm repo
-  ansible.builtin.shell: |
-    helm repo add csi-driver-nfs https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
-    helm repo update
-  delegate_to: localhost
-  become: false
-  run_once: true
-
+# Runs on the control node against the cluster's kubeconfig context.
 - name: Install NFS CSI driver
-  ansible.builtin.shell: |
-    helm upgrade --install csi-driver-nfs csi-driver-nfs/csi-driver-nfs \
-      --namespace kube-system \
-      --set kubeletDir=/var/lib/kubelet \
-      --wait
+  kubernetes.core.helm:
+    name: csi-driver-nfs
+    chart_ref: csi-driver-nfs
+    chart_repo_url: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+    chart_version: "{{ nfs_csi_chart_version }}"
+    release_namespace: kube-system
+    kube_context: "{{ cluster_context }}"
+    wait: true
+    values:
+      kubeletDir: /var/lib/kubelet
   delegate_to: localhost
   become: false
   run_once: true
 
+# Bulk/shared data on the NAS. Not the default class — Longhorn is.
 - name: Apply NFS StorageClass
-  ansible.builtin.shell: |
-    kubectl apply -f - <<'EOF'
-    apiVersion: storage.k8s.io/v1
-    kind: StorageClass
-    metadata:
-      name: nfs-nas
-      annotations:
-        storageclass.kubernetes.io/is-default-class: "true"
-    provisioner: nfs.csi.k8s.io
-    parameters:
-      server: {{ nfs_server }}
-      share: {{ nfs_share }}
-    reclaimPolicy: Retain
-    volumeBindingMode: Immediate
-    EOF
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: nfs-nas
+      provisioner: nfs.csi.k8s.io
+      parameters:
+        server: "{{ nfs_server }}"
+        share: "{{ nfs_share }}"
+      reclaimPolicy: Retain
+      volumeBindingMode: Immediate
   delegate_to: localhost
   become: false
   run_once: true

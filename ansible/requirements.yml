@@ -13,3 +13,5 @@ collections:
   - name: ansible.posix
   # Vault lookups in group_vars
   - name: community.hashi_vault
+  # Helm releases and manifests in this repo's roles
+  - name: kubernetes.core

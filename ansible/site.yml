@@ -1,4 +1,17 @@
 ---
+- name: Preflight - control node tools
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Check helm and kubectl are installed (add-on roles run them from here)
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - helm version --short
+        - kubectl version --client
+      changed_when: false
+
 - name: NFS client prep
   hosts: k3s_cluster
   gather_facts: true
@@ -33,3 +46,11 @@
   roles:
     - role: longhorn
       when: install_longhorn | default(false)
+
+- name: Setup Argo CD
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  roles:
+    - role: argocd
+      when: install_argocd | default(false)

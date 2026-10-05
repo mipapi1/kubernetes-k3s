@@ -1,0 +1,30 @@
+---
+# Runs on the control node against the cluster's kubeconfig context.
+# The initial admin password is in the argocd-initial-admin-secret Secret.
+- name: Install Argo CD
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo-cd
+    chart_repo_url: https://argoproj.github.io/argo-helm
+    chart_version: "{{ argocd_chart_version }}"
+    release_namespace: argocd
+    create_namespace: true
+    kube_context: "{{ cluster_context }}"
+    wait: true
+    values:
+      global:
+        domain: "{{ argocd_hostname }}"
+      configs:
+        params:
+          # HAProxy terminates TLS; Argo CD serves plain HTTP behind Traefik
+          server.insecure: true
+      # SSO isn't used; local admin login only
+      dex:
+        enabled: false
+      server:
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+  delegate_to: localhost
+  become: false
+  run_once: true
