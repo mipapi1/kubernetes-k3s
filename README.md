@@ -6,11 +6,11 @@ Homelab k3s cluster: three Proxmox VMs that each run the k3s control plane and w
 kubernetes-k3s/
 └── ansible/
     ├── requirements.yml   pinned collections, incl. upstream k3s-io/k3s-ansible (k3s.orchestration)
-    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD
+    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets
     ├── inventory.yml      cluster hosts and k3s settings
     ├── group_vars/        secrets looked up from Vault
-    ├── manifests/         applied by k3s itself (Traefik config)
-    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, cert_manager)
+    ├── manifests/         applied by k3s itself (Traefik config, CoreDNS override for *.agathla.com)
+    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cert_manager)
     └── deploy.sh
 ```
 
@@ -68,3 +68,43 @@ Nothing secret is committed. Secrets live in Vault (`secret/` KV v2):
 | `secret/proxmox/terraform` | proxmox-infrastructure `tf.sh` (Proxmox API token) |
 | `secret/k3s/cluster` | Ansible (k3s cluster token) |
 | `secret/cloudflare` | Ansible (cert-manager DNS-01 token) |
+| `secret/k8s/*` | apps in the cluster, via External Secrets Operator (read-only) |
+
+### Apps: secrets from Vault (External Secrets Operator)
+
+The `vault` ClusterSecretStore logs in to Vault with ESO's Kubernetes service account
+(Kubernetes auth — no Vault token stored in the cluster) and may only read `secret/k8s/*`.
+An app requests a secret like this:
+
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: myapp, namespace: myapp}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault}
+  target: {name: myapp-secrets}            # Kubernetes Secret that gets created
+  data:
+    - secretKey: DB_PASSWORD
+      remoteRef: {key: k8s/myapp, property: db-password}
+```
+
+One-time Vault setup (as root; redo `auth/kubernetes/config` if the cluster is rebuilt, since its CA changes):
+
+```bash
+vault auth enable kubernetes
+kubectl --context homelab config view --raw --minify \
+  -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > /tmp/k3s-ca.crt
+vault write auth/kubernetes/config kubernetes_host=https://10.0.20.10:6443 \
+  kubernetes_ca_cert=@/tmp/k3s-ca.crt disable_local_ca_jwt=true
+vault policy write k8s-external-secrets - <<'POLICY'
+path "secret/data/k8s/*"     { capabilities = ["read"] }
+path "secret/metadata/k8s/*" { capabilities = ["read", "list"] }
+POLICY
+vault write auth/kubernetes/role/external-secrets \
+  bound_service_account_names=external-secrets bound_service_account_namespaces=external-secrets \
+  policies=k8s-external-secrets ttl=1h
+```
+
+Re-deploy a single add-on without re-running the k3s install (which restarts every server):
+`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`).

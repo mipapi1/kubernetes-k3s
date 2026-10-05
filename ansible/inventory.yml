@@ -37,6 +37,7 @@ k3s_cluster:
     # Copied to /var/lib/rancher/k3s/server/manifests and applied by k3s
     extra_manifests:
       - "{{ inventory_dir }}/manifests/traefik-config.yaml"
+      - "{{ inventory_dir }}/manifests/coredns-custom.yaml"
 
     # Storage
     nfs_server: "10.0.25.10"
@@ -46,6 +47,7 @@ k3s_cluster:
     install_nfs_csi: true
     install_longhorn: true
     install_argocd: true
+    install_external_secrets: true
     # TLS is terminated by HAProxy on OPNsense (ACME certs), so cert-manager isn't needed yet
     install_cert_manager: false
     cert_manager_email: "admin@agathla.com"

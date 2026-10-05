@@ -1,0 +1,64 @@
+---
+# Runs on the control node against the cluster's kubeconfig context.
+- name: Install External Secrets Operator
+  kubernetes.core.helm:
+    name: external-secrets
+    chart_ref: external-secrets
+    chart_repo_url: https://charts.external-secrets.io
+    chart_version: "{{ external_secrets_chart_version }}"
+    release_namespace: external-secrets
+    create_namespace: true
+    kube_context: "{{ cluster_context }}"
+    wait: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# Vault's Kubernetes auth validates ESO's service account token by calling the
+# TokenReview API with that same token, so the account needs auth-delegator.
+- name: Allow ESO's service account to be validated by Vault (TokenReview)
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: external-secrets-vault-auth-delegator
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:auth-delegator
+      subjects:
+        - kind: ServiceAccount
+          name: external-secrets
+          namespace: external-secrets
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Create the Vault ClusterSecretStore
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: external-secrets.io/v1
+      kind: ClusterSecretStore
+      metadata:
+        name: vault
+      spec:
+        provider:
+          vault:
+            server: "{{ external_secrets_vault_server }}"
+            path: secret
+            version: v2
+            auth:
+              kubernetes:
+                mountPath: "{{ external_secrets_vault_auth_mount }}"
+                role: "{{ external_secrets_vault_role }}"
+                serviceAccountRef:
+                  name: external-secrets
+                  namespace: external-secrets
+  delegate_to: localhost
+  become: false
+  run_once: true

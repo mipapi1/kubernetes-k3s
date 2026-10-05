@@ -3,5 +3,10 @@
 longhorn_chart_version: "1.13.0"
 # 2 copies of every volume: survives one node failure, uses a third less disk than 3
 longhorn_replica_count: 2
-# Backups go to the NAS (Longhorn creates a backupstore/ folder in the export)
-longhorn_backup_target: "nfs://{{ nfs_server }}:{{ nfs_share }}"
+# Backups go to the NAS (Longhorn creates a backupstore/ folder in the export).
+# The Ugreen NAS only offers NFSv3, but Longhorn defaults to NFSv4, so force v3.
+# `nolock` because Longhorn's containers don't run rpc.statd (NFSv3 locking);
+# Longhorn coordinates backups with its own lock files, not NFS locks.
+# Backup + restore verified on 2026-10-04.
+longhorn_backup_nfs_options: "nfsvers=3,nolock,actimeo=1,soft,timeo=300,retry=2"
+longhorn_backup_target: "nfs://{{ nfs_server }}:{{ nfs_share }}?nfsOptions={{ longhorn_backup_nfs_options }}"

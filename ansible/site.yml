@@ -1,9 +1,12 @@
 ---
+# Add-on plays are tagged, so one can be (re)deployed without re-running the k3s
+# install (which restarts every server):  ./deploy.sh --tags external_secrets
 - name: Preflight - control node tools
   hosts: localhost
   connection: local
   gather_facts: false
   become: false
+  tags: always
   tasks:
     - name: Check helm and kubectl are installed (add-on roles run them from here)
       ansible.builtin.command: "{{ item }}"
@@ -16,6 +19,7 @@
   hosts: k3s_cluster
   gather_facts: true
   become: true
+  tags: nfs
   roles:
     - role: nfs
 
@@ -27,6 +31,7 @@
   hosts: server[0]
   gather_facts: false
   become: false
+  tags: cert_manager
   roles:
     - role: cert_manager
       when: install_cert_manager | default(false)
@@ -35,6 +40,7 @@
   hosts: server[0]
   gather_facts: false
   become: false
+  tags: nfs_csi
   roles:
     - role: nfs_csi
       when: install_nfs_csi | default(false)
@@ -43,6 +49,7 @@
   hosts: k3s_cluster
   gather_facts: true
   become: true
+  tags: longhorn
   roles:
     - role: longhorn
       when: install_longhorn | default(false)
@@ -51,6 +58,16 @@
   hosts: server[0]
   gather_facts: false
   become: false
+  tags: argocd
   roles:
     - role: argocd
       when: install_argocd | default(false)
+
+- name: Setup External Secrets Operator (Vault)
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  tags: external_secrets
+  roles:
+    - role: external_secrets
+      when: install_external_secrets | default(false)

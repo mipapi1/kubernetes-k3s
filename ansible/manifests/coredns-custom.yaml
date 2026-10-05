@@ -1,0 +1,15 @@
+# Pods resolve internal *.agathla.com names (vault, nas, ...) through OPNsense
+# (AdGuard -> Unbound host overrides). Everything else keeps using the node's
+# upstream resolver. k3s's CoreDNS imports *.server keys from this ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  agathla.server: |
+    agathla.com:53 {
+        errors
+        cache 30
+        forward . 10.0.20.1
+    }
