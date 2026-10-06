@@ -10,7 +10,7 @@ kind: Deployment
 metadata:
   name: vpn-stack
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
