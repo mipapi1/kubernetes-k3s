@@ -7,7 +7,7 @@ keep using `https://ente.agathla.com`.
 |---|---|
 | `museum.yaml` | The API server (official `ghcr.io/ente/server`, pinned by digest to the build the VM ran) and its non-secret config. |
 | `postgres.yaml` | Postgres 15.15 on a Longhorn volume. |
-| `minio.yaml` | MinIO serving the photos from the NAS (`/volume1/ente`, ~344 GB, not copied). Image republished to `ghcr.io/mipapi1/minio` (MinIO stopped publishing community images). |
+| `minio.yaml` | Silo (`pgsty/silo`, the maintained MinIO fork) serving the photos from the NAS (`/volume1/ente`, ~344 GB, not copied). Replaced MinIO in place on 2026-10-06. |
 | `external-secret.yaml` | DB password and MinIO credentials from Vault `secret/k8s/ente/*`; museum's `credentials.yaml` is rendered from them. |
 | `ingress.yaml` | `ente.agathla.com` (API) and `minio.agathla.com` (photo transfers). |
 
@@ -27,7 +27,7 @@ directory corrupt it. Postgres runs from the start with an empty database.
 - museum runs with the image's built-in default `key.encryption`, `key.hash` and
   `jwt.secret` (none are set in its config). Rotate them to secrets in Vault — carefully,
   data in Postgres is encrypted with the current ones.
-- Replace the weak MinIO root login, and eventually MinIO itself (e.g. Garage).
+- Replace the weak MinIO root login.
 
 ## Rollback
 
