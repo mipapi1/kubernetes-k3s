@@ -34,7 +34,11 @@ spec:
     spec:
       containers:
         - name: museum
-          image: ghcr.io/ente-io/server@sha256:980f69321bdda48b91fb86ce54a3060051a3c8da596e7dbea98488c190accac7
+          # Official Ente image (built 2025-12-15), amd64 manifest. Ente no longer serves it
+          # publicly, so it was loaded onto every node from the VM's cache (2026-10-06) and
+          # must not be pulled. TODO: republish to ghcr.io/mipapi1 so rebuilt nodes get it.
+          image: ghcr.io/ente-io/server@sha256:a2e7832ca6604abc13d03b19c3a6aa8eb77ab87902640ffcb122ae00d31b6273
+          imagePullPolicy: Never
           env:
             - {name: ENTE_CREDENTIALS_FILE, value: /credentials.yaml}
           ports:
