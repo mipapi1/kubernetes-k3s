@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: plex
-          image: lscr.io/linuxserver/plex:1.43.0.10492-121068a07-ls299
+          image: lscr.io/linuxserver/plex:1.43.4.10903-e5521bd8c-ls327
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -74,7 +74,7 @@ spec:
     spec:
       containers:
         - name: tautulli
-          image: lscr.io/linuxserver/tautulli:v2.17.0-ls225
+          image: lscr.io/linuxserver/tautulli:v2.18.2-ls246
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}

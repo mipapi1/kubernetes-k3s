@@ -57,7 +57,7 @@ spec:
             - {name: gluetun-data, mountPath: /gluetun}
       containers:
         - name: qbittorrent
-          image: lscr.io/linuxserver/qbittorrent:5.1.4-r3-ls451
+          image: lscr.io/linuxserver/qbittorrent:5.2.4_v2.0.15-ls479
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -71,7 +71,7 @@ spec:
             - {name: qbittorrent-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: nzbget
-          image: lscr.io/linuxserver/nzbget:v26.1-ls239
+          image: lscr.io/linuxserver/nzbget:v26.3-ls266
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -83,7 +83,7 @@ spec:
             - {name: nzbget-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:2.3.5.5327-ls142
+          image: lscr.io/linuxserver/prowlarr:2.6.5.5623-ls162
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -94,7 +94,7 @@ spec:
           volumeMounts:
             - {name: prowlarr-config, mountPath: /config}
         - name: sonarr
-          image: lscr.io/linuxserver/sonarr:4.0.17.2952-ls308
+          image: lscr.io/linuxserver/sonarr:4.0.20.3014-ls326
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -106,7 +106,7 @@ spec:
             - {name: sonarr-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: radarr
-          image: lscr.io/linuxserver/radarr:6.1.1.10360-ls299
+          image: lscr.io/linuxserver/radarr:6.4.4.10685-ls319
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -118,7 +118,7 @@ spec:
             - {name: radarr-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: lidarr
-          image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls24
+          image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls42
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -130,7 +130,7 @@ spec:
             - {name: lidarr-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: bazarr
-          image: lscr.io/linuxserver/bazarr:v1.5.6-ls344
+          image: lscr.io/linuxserver/bazarr:v1.6.2-ls366
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
