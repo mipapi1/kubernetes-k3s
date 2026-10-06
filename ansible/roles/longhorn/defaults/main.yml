@@ -3,6 +3,10 @@
 longhorn_chart_version: "1.13.0"
 # 2 copies of every volume: survives one node failure, uses a third less disk than 3
 longhorn_replica_count: 2
+# Rebuild one replica at a time per node (Longhorn default: 5). Each node has a single
+# disk shared with etcd; parallel rebuilds after a node outage starved etcd and made
+# k3s restart (2026-10-06). Slower recovery, but the control plane stays healthy.
+longhorn_concurrent_rebuilds_per_node: 1
 # Backups go to the NAS (Longhorn creates a backupstore/ folder in the export).
 # The Ugreen NAS only offers NFSv3, but Longhorn defaults to NFSv4, so force v3.
 # `nolock` because Longhorn's containers don't run rpc.statd (NFSv3 locking);

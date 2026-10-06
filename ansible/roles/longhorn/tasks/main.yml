@@ -65,6 +65,7 @@
       defaultSettings:
         # Per data engine since Longhorn 1.8
         defaultReplicaCount: '{"v1":"{{ longhorn_replica_count }}","v2":"{{ longhorn_replica_count }}"}'
+        concurrentReplicaRebuildPerNodeLimit: "{{ longhorn_concurrent_rebuilds_per_node }}"
       defaultBackupStore:
         backupTarget: "{{ longhorn_backup_target }}"
   delegate_to: localhost
