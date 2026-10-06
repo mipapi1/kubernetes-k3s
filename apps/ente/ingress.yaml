@@ -1,0 +1,23 @@
+# https://ente.agathla.com (API) and https://minio.agathla.com (photo uploads/downloads
+# via presigned URLs) -> HAProxy (TLS) -> Traefik. Both need DNS -> 10.0.20.10.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ente
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ente.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: museum, port: {number: 8080}}
+    - host: minio.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: minio, port: {number: 3200}}

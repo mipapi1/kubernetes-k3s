@@ -1,0 +1,46 @@
+# Photo objects (MinIO data): the existing NAS share, mounted as-is (no copy, ~344 GB).
+# Same NFSv3 mount the VM uses. The NAS export must allow the k3s nodes (10.0.20.0/24).
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ente-objects
+spec:
+  capacity:
+    storage: 2Ti
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - nfsvers=3
+    - hard
+    - noatime
+  nfs:
+    server: 10.0.25.10
+    path: /volume1/ente
+  claimRef:
+    namespace: ente
+    name: ente-objects
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ente-objects
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: ""
+  volumeName: ente-objects
+  resources:
+    requests:
+      storage: 2Ti
+---
+# Postgres data: Longhorn, 2 replicas, backed up to the NAS
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

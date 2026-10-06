@@ -1,0 +1,55 @@
+# MinIO serving the photo objects from the NAS. Exact image the VM ran
+# (minio/minio:RELEASE.2024-12-18T13-15-44Z), republished to GHCR because MinIO no
+# longer publishes community images on Docker Hub.
+#
+# replicas: 0 until cutover — two MinIO servers on the same data directory corrupt it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: minio}
+  template:
+    metadata:
+      labels: {app: minio}
+    spec:
+      containers:
+        - name: minio
+          image: ghcr.io/mipapi1/minio:RELEASE.2024-12-18T13-15-44Z@sha256:34c8e2f52a5984492555427fee07254c80036bdb7079bb91679232abd7a4fa20
+          args: ["server", "/data", "--address", ":3200", "--console-address", ":3201"]
+          env:
+            # Public URL the phone apps use for uploads/downloads (presigned URLs)
+            - {name: MINIO_SERVER_URL, value: "https://minio.agathla.com"}
+          envFrom:
+            - secretRef: {name: minio}
+          ports:
+            - {name: api, containerPort: 3200}
+            - {name: console, containerPort: 3201}
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: 3200}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /minio/health/live, port: 3200}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: objects, mountPath: /data}
+      volumes:
+        - name: objects
+          persistentVolumeClaim: {claimName: ente-objects}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector: {app: minio}
+  ports:
+    - {name: api, port: 3200, targetPort: 3200}
+    - {name: console, port: 3201, targetPort: 3201}

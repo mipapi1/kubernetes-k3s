@@ -1,0 +1,70 @@
+# museum: the Ente API server. Pinned to the exact image the VM ran (by digest; the VM
+# used the floating ghcr.io/ente-io/server tag, built 2025-12-15).
+#
+# NOTE: museum.yaml sets no key.encryption / key.hash / jwt.secret, so museum uses the
+# defaults built into the image. They must stay identical across the migration (data in
+# Postgres is encrypted with them); rotating them is a separate, careful step.
+#
+# replicas: 0 until cutover.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: museum-config
+data:
+  museum.yaml: |
+    apps:
+      public-albums: https://ente.agathla.com
+    internal:
+      admins:
+        - 1580559962386438
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: museum
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: museum}
+  template:
+    metadata:
+      labels: {app: museum}
+    spec:
+      containers:
+        - name: museum
+          image: ghcr.io/ente-io/server@sha256:980f69321bdda48b91fb86ce54a3060051a3c8da596e7dbea98488c190accac7
+          env:
+            - {name: ENTE_CREDENTIALS_FILE, value: /credentials.yaml}
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /ping, port: 8080}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: config, mountPath: /museum.yaml, subPath: museum.yaml, readOnly: true}
+            - {name: credentials, mountPath: /credentials.yaml, subPath: credentials.yaml, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: logs, mountPath: /var/logs}
+      volumes:
+        - name: config
+          configMap: {name: museum-config}
+        - name: credentials
+          secret: {secretName: museum-credentials}
+        - name: data
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: museum
+spec:
+  selector: {app: museum}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080}
