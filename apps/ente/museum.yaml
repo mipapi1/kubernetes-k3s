@@ -23,7 +23,7 @@ kind: Deployment
 metadata:
   name: museum
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
