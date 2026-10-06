@@ -1,0 +1,55 @@
+# Silo (pgsty/silo, the maintained MinIO fork Ente now uses) serving the photo objects
+# from the NAS. Drop-in for MinIO: same data directory format, MINIO_* variables, ports.
+# Classic image (runs as root like MinIO did; the NAS files are owned by root).
+#
+# replicas: 0 until cutover — two servers (VM MinIO + Silo) on the same data directory corrupt it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: minio}
+  template:
+    metadata:
+      labels: {app: minio}
+    spec:
+      containers:
+        - name: minio
+          image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46
+          args: ["server", "/data", "--address", ":3200", "--console-address", ":3201"]
+          env:
+            # Public URL the phone apps use for uploads/downloads (presigned URLs)
+            - {name: MINIO_SERVER_URL, value: "https://prvtenteminio.agathla.com"}
+          envFrom:
+            - secretRef: {name: minio}
+          ports:
+            - {name: api, containerPort: 3200}
+            - {name: console, containerPort: 3201}
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: 3200}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /minio/health/live, port: 3200}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: objects, mountPath: /data}
+      volumes:
+        - name: objects
+          persistentVolumeClaim: {claimName: prvtente-objects}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector: {app: minio}
+  ports:
+    - {name: api, port: 3200, targetPort: 3200}
+    - {name: console, port: 3201, targetPort: 3201}

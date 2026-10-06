@@ -1,0 +1,23 @@
+# Second (private) Ente Photos server, migrated from the prvtente-prod01 VM. See README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prvtente
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: prvtente
+resources:
+  - storage.yaml
+  - external-secret.yaml
+  - postgres.yaml
+  - minio.yaml
+  - museum.yaml
+  - ingress.yaml
+patches:
+  # Never let Argo CD delete a data volume because it disappeared from git
+  - target:
+      kind: PersistentVolumeClaim
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-options: Prune=false
