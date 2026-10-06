@@ -4,6 +4,7 @@ Homelab k3s cluster: three Proxmox VMs that each run the k3s control plane and w
 
 ```
 kubernetes-k3s/
+├── apps/                  GitOps: each folder = one app, deployed by Argo CD
 └── ansible/
     ├── requirements.yml   pinned collections, incl. upstream k3s-io/k3s-ansible (k3s.orchestration)
     ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets
@@ -108,3 +109,28 @@ vault write auth/kubernetes/role/external-secrets \
 
 Re-deploy a single add-on without re-running the k3s install (which restarts every server):
 `./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`).
+
+## Apps (GitOps with Argo CD)
+
+Argo CD (https://argocd.agathla.com, user `admin`) watches `apps/` on the `main` branch.
+**Each folder under `apps/` becomes an Application** named after the folder, deployed into a
+namespace of the same name (created automatically). Plain manifests or a `kustomization.yaml`
+both work.
+
+- **Add an app:** commit `apps/<name>/…` and push. Argo CD picks it up within ~3 minutes.
+- **Change an app:** commit and push. Manual `kubectl` edits are reverted (self-heal).
+- **Remove a resource:** delete it from the folder; Argo CD prunes it from the cluster.
+- **Remove a whole app:** deleting its folder removes the Application but **keeps** its
+  resources and data (`preserveResourcesOnDeletion`). Clean up deliberately with
+  `kubectl delete namespace <name>`.
+- **Expose it:** an Ingress with `ingressClassName: traefik` and host `<name>.agathla.com`,
+  plus a DNS override `<name>.agathla.com → 10.0.20.10` in OPNsense (Unbound).
+- **Secrets:** an `ExternalSecret` reading `secret/k8s/<name>` from Vault (see below).
+
+The ApplicationSet is created by the `argocd` role (`./deploy.sh --tags argocd`).
+
+Initial admin password (change it after the first login, then delete the secret):
+
+```bash
+kubectl --context homelab -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+```

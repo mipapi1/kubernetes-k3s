@@ -1,0 +1,23 @@
+# Media stack, migrated from the media-prod01 VM (docker compose in /docker/servarr).
+# See README.md in this folder for the layout and the cutover procedure.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: media
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: media
+resources:
+  - storage.yaml
+  - external-secret.yaml
+  - vpn-stack.yaml
+  - plex.yaml
+  - ingress.yaml
+patches:
+  # Never let Argo CD delete a data volume because it disappeared from git
+  - target:
+      kind: PersistentVolumeClaim
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-options: Prune=false

@@ -1,0 +1,184 @@
+# gluetun + every app that ran with network_mode: service:gluetun on the VM.
+# All containers in a pod share one network namespace, so (as on the VM) all their
+# internet traffic leaves through the ProtonVPN tunnel and they still reach each
+# other on localhost — the apps' existing settings keep working unchanged.
+#
+# replicas: 0 until cutover (see README.md). Two gluetun instances with the same
+# WireGuard key knock each other offline, so this must not run alongside the VM.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vpn-stack
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: vpn-stack}
+  template:
+    metadata:
+      labels: {app: vpn-stack}
+    spec:
+      initContainers:
+        # Native sidecar: starts first, the apps only start once the VPN is healthy
+        - name: gluetun
+          image: qmcgaw/gluetun:v3.41.3
+          restartPolicy: Always
+          securityContext:
+            capabilities:
+              add: [NET_ADMIN]
+          env:
+            - {name: TZ, value: America/New_York}
+            - {name: VPN_SERVICE_PROVIDER, value: protonvpn}
+            - {name: VPN_TYPE, value: wireguard}
+            - {name: SERVER_COUNTRIES, value: United States}
+            - {name: SERVER_CITIES, value: Philadelphia}
+            - {name: HEALTH_VPN_DURATION_INITIAL, value: 120s}
+            - {name: HEALTH_SERVER_ADDRESS, value: ":9999"}
+            # Traffic allowed outside the tunnel: pods, services, the K3s VLAN, the NAS
+            - {name: FIREWALL_OUTBOUND_SUBNETS, value: "172.16.0.0/16,172.17.0.0/16,10.0.20.0/24,10.0.25.0/24"}
+            # Web UIs reachable from Traefik (gluetun blocks inbound by default)
+            - {name: FIREWALL_INPUT_PORTS, value: "8080,6789,9696,7878,8989,8686,6767,5055"}
+          envFrom:
+            - secretRef: {name: gluetun}
+          startupProbe:
+            httpGet: {path: /, port: 9999}
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: {path: /, port: 9999}
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - {name: tun, mountPath: /dev/net/tun}
+            - {name: gluetun-data, mountPath: /gluetun}
+      containers:
+        - name: qbittorrent
+          image: lscr.io/linuxserver/qbittorrent:5.1.4-r3-ls451
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+            - {name: WEBUI_PORT, value: "8080"}
+            - {name: TORRENTING_PORT, value: "6881"}
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 2Gi}
+          volumeMounts:
+            - {name: qbittorrent-config, mountPath: /config}
+            - {name: media, mountPath: /data}
+        - name: nzbget
+          image: lscr.io/linuxserver/nzbget:v26.1-ls239
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: nzbget-config, mountPath: /config}
+            - {name: media, mountPath: /data}
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:2.3.5.5327-ls142
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 20m, memory: 192Mi}
+            limits: {memory: 768Mi}
+          volumeMounts:
+            - {name: prowlarr-config, mountPath: /config}
+        - name: sonarr
+          image: lscr.io/linuxserver/sonarr:4.0.17.2952-ls308
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 20m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: sonarr-config, mountPath: /config}
+            - {name: media, mountPath: /data}
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:6.1.1.10360-ls299
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 20m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: radarr-config, mountPath: /config}
+            - {name: media, mountPath: /data}
+        - name: lidarr
+          image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls24
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 20m, memory: 160Mi}
+            limits: {memory: 768Mi}
+          volumeMounts:
+            - {name: lidarr-config, mountPath: /config}
+            - {name: media, mountPath: /data}
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:v1.5.6-ls344
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 20m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: bazarr-config, mountPath: /config}
+            - {name: media, mountPath: /data}
+        - name: jellyseerr
+          image: fallenbagel/jellyseerr:2.7.3
+          env:
+            - {name: TZ, value: America/New_York}
+          resources:
+            requests: {cpu: 20m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: jellyseerr-config, mountPath: /app/config}
+            - {name: media, mountPath: /data}
+      volumes:
+        - name: tun
+          hostPath: {path: /dev/net/tun, type: CharDevice}
+        - name: gluetun-data
+          emptyDir: {}
+        - name: media
+          persistentVolumeClaim: {claimName: media-library}
+        - {name: qbittorrent-config, persistentVolumeClaim: {claimName: qbittorrent-config}}
+        - {name: nzbget-config, persistentVolumeClaim: {claimName: nzbget-config}}
+        - {name: prowlarr-config, persistentVolumeClaim: {claimName: prowlarr-config}}
+        - {name: sonarr-config, persistentVolumeClaim: {claimName: sonarr-config}}
+        - {name: radarr-config, persistentVolumeClaim: {claimName: radarr-config}}
+        - {name: lidarr-config, persistentVolumeClaim: {claimName: lidarr-config}}
+        - {name: bazarr-config, persistentVolumeClaim: {claimName: bazarr-config}}
+        - {name: jellyseerr-config, persistentVolumeClaim: {claimName: jellyseerr-config}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vpn-stack
+spec:
+  selector: {app: vpn-stack}
+  ports:
+    - {name: qbittorrent, port: 8080, targetPort: 8080}
+    - {name: nzbget, port: 6789, targetPort: 6789}
+    - {name: prowlarr, port: 9696, targetPort: 9696}
+    - {name: radarr, port: 7878, targetPort: 7878}
+    - {name: sonarr, port: 8989, targetPort: 8989}
+    - {name: lidarr, port: 8686, targetPort: 8686}
+    - {name: bazarr, port: 6767, targetPort: 6767}
+    - {name: jellyseerr, port: 5055, targetPort: 5055}

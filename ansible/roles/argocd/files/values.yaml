@@ -1,0 +1,23 @@
+# Helm values for the argo-cd chart (version pinned in ../defaults/main.yml).
+# Only what differs from the chart defaults; full reference:
+#   helm show values argo/argo-cd --version <argocd_chart_version>
+#   https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+
+global:
+  # Used for the ingress host and the URLs Argo CD generates
+  domain: argocd.agathla.com
+
+configs:
+  params:
+    # HAProxy (OPNsense) terminates TLS and Traefik forwards to Argo CD,
+    # so the server itself serves plain HTTP inside the cluster.
+    server.insecure: true
+
+# No SSO; login is the local admin account only
+dex:
+  enabled: false
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik

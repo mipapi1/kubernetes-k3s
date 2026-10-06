@@ -1,0 +1,109 @@
+# https://<app>.agathla.com -> HAProxy (TLS) -> Traefik -> app.
+# Each host needs a DNS override in OPNsense -> 10.0.20.10 (or one *.agathla.com wildcard).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: media
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: qbittorrent.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 8080
+    - host: nzbget.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 6789
+    - host: prowlarr.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 9696
+    - host: radarr.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 7878
+    - host: sonarr.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 8989
+    - host: lidarr.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 8686
+    - host: bazarr.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 6767
+    - host: jellyseerr.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vpn-stack
+                port:
+                  number: 5055
+    - host: plex.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: plex
+                port:
+                  number: 32400
+    - host: tautulli.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tautulli
+                port:
+                  number: 8181

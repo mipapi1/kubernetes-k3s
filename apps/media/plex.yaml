@@ -1,0 +1,102 @@
+# Plex and Tautulli ran outside the VPN on the VM and stay that way.
+# replicas: 0 until cutover (see README.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: plex}
+  template:
+    metadata:
+      labels: {app: plex}
+    spec:
+      containers:
+        - name: plex
+          image: lscr.io/linuxserver/plex:1.43.0.10492-121068a07-ls299
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+            - {name: VERSION, value: docker}
+          ports:
+            - {name: plex, containerPort: 32400}
+          readinessProbe:
+            httpGet: {path: /identity, port: 32400}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 200m, memory: 1Gi}
+            limits: {memory: 4Gi}
+          volumeMounts:
+            - {name: config, mountPath: /config}
+            - {name: media, mountPath: /data}
+            - {name: transcode, mountPath: /transcode}
+      volumes:
+        - name: config
+          persistentVolumeClaim: {claimName: plex-config}
+        - name: media
+          persistentVolumeClaim: {claimName: media-library}
+        # Temporary transcode files: node-local scratch space, not backed up
+        - name: transcode
+          emptyDir: {sizeLimit: 20Gi}
+---
+# Port 32400 on every node's IP (k3s ServiceLB) for Plex clients and the OPNsense
+# port forward, plus https://plex.agathla.com via the ingress.
+# Fixed cluster IP: apps in the VPN pod can't resolve cluster DNS names (gluetun
+# uses its own DNS), so they reach Plex at 172.17.0.200:32400.
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex
+spec:
+  type: LoadBalancer
+  clusterIP: 172.17.0.200
+  selector: {app: plex}
+  ports:
+    - {name: plex, port: 32400, targetPort: 32400}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tautulli
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: tautulli}
+  template:
+    metadata:
+      labels: {app: tautulli}
+    spec:
+      containers:
+        - name: tautulli
+          image: lscr.io/linuxserver/tautulli:v2.17.0-ls225
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: America/New_York}
+          ports:
+            - {containerPort: 8181}
+          resources:
+            requests: {cpu: 20m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: config, mountPath: /config}
+      volumes:
+        - name: config
+          persistentVolumeClaim: {claimName: tautulli-config}
+---
+# Fixed cluster IP so apps in the VPN pod (no cluster DNS) can reach it
+apiVersion: v1
+kind: Service
+metadata:
+  name: tautulli
+spec:
+  clusterIP: 172.17.0.201
+  selector: {app: tautulli}
+  ports:
+    - {port: 8181, targetPort: 8181}
