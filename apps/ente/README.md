@@ -24,10 +24,11 @@ directory corrupt it. Postgres runs from the start with an empty database.
 
 ## Follow-ups
 
-- museum runs with the image's built-in default `key.encryption`, `key.hash` and
-  `jwt.secret` (none are set in its config). Rotate them to secrets in Vault — carefully,
-  data in Postgres is encrypted with the current ones.
-- Replace the weak MinIO root login.
+- museum still uses the image's built-in default `key.encryption` and `key.hash`. Ente has
+  no rotation for these (data in Postgres is encrypted/hashed with them), so they stay.
+  `jwt.secret` comes from Vault (`secret/k8s/ente/museum`); the Postgres password was
+  rotated on 2026-10-06.
+- Give museum its own Silo user (bucket-scoped) instead of the weak root login.
 
 ## Rollback
 
