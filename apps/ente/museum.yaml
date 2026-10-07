@@ -1,5 +1,4 @@
-# museum: the Ente API server. Pinned to the exact image the VM ran (by digest; the VM
-# used the floating ghcr.io/ente-io/server tag, built 2025-12-15).
+# museum: the Ente API server, official image pinned by digest.
 #
 # NOTE: museum.yaml sets no key.encryption / key.hash / jwt.secret, so museum uses the
 # defaults built into the image. They must stay identical across the migration (data in
@@ -34,9 +33,9 @@ spec:
     spec:
       containers:
         - name: museum
-          # Official Ente image, the exact build the VM ran (2025-12-15), amd64 manifest.
-          # Ente moved its images from ghcr.io/ente-io/* to ghcr.io/ente/* (same digests).
-          image: ghcr.io/ente/server@sha256:a2e7832ca6604abc13d03b19c3a6aa8eb77ab87902640ffcb122ae00d31b6273
+          # Official Ente image (2026-09-15), same as prvtente. Upgraded from the VM's
+          # 2025-12-15 build on 2026-10-06; the database migrated forward (schema 113 -> 142).
+          image: ghcr.io/ente/server:163f45c26f130090abed03649530f53d2d976565@sha256:3511ff25db3bf950abeb3983928eeadeed7f53b690ee94704c14be72fa719b1d
           env:
             - {name: ENTE_CREDENTIALS_FILE, value: /credentials.yaml}
           ports:

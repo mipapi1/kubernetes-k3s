@@ -5,7 +5,7 @@ keep using `https://ente.agathla.com`.
 
 | File | What |
 |---|---|
-| `museum.yaml` | The API server (official `ghcr.io/ente/server`, pinned by digest to the build the VM ran) and its non-secret config. |
+| `museum.yaml` | The API server (official `ghcr.io/ente/server`, pinned by digest) and its non-secret config. |
 | `postgres.yaml` | Postgres 15.15 on a Longhorn volume. |
 | `minio.yaml` | Silo (`pgsty/silo`, the maintained MinIO fork) serving the photos from the NAS (`/volume1/ente`, ~344 GB, not copied). Replaced MinIO in place on 2026-10-06. |
 | `external-secret.yaml` | DB password and MinIO credentials from Vault `secret/k8s/ente/*`; museum's `credentials.yaml` is rendered from them. |
