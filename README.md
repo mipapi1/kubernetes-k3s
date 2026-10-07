@@ -7,11 +7,11 @@ kubernetes-k3s/
 ├── apps/                  GitOps: each folder = one app, deployed by Argo CD
 └── ansible/
     ├── requirements.yml   pinned collections, incl. upstream k3s-io/k3s-ansible (k3s.orchestration)
-    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets
+    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets, CloudNativePG, Forgejo
     ├── inventory.yml      cluster hosts and k3s settings
     ├── group_vars/        secrets looked up from Vault
     ├── manifests/         applied by k3s itself (Traefik config, CoreDNS override for *.agathla.com)
-    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cert_manager)
+    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, cert_manager)
     └── deploy.sh
 ```
 
@@ -108,7 +108,28 @@ vault write auth/kubernetes/role/external-secrets \
 ```
 
 Re-deploy a single add-on without re-running the k3s install (which restarts every server):
-`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`).
+`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`).
+
+## Forgejo (git server)
+
+https://git.agathla.com, installed by the `forgejo` role rather than through Argo CD, because
+Argo CD reads the apps from it (a broken Forgejo must not be needed to fix Forgejo). Git over
+HTTPS only; sign-in is required to see anything and self-registration is off.
+
+- **Database:** PostgreSQL run by the CloudNativePG operator (`cloudnative_pg` role), defined
+  in `roles/forgejo/files/postgres.yaml`.
+- **Accounts:** `forgejo-admin` is the break-glass admin; its password is re-applied from Vault
+  on every start, so change it in Vault, not in the UI. Daily work uses a normal account.
+- **Secrets** (all generated, never in git):
+
+| Vault path | Keys |
+|---|---|
+| `secret/k8s/forgejo/admin` | `username`, `password` |
+| `secret/k8s/forgejo/postgres` | `password` (the operator applies a new one by itself) |
+| `secret/k8s/forgejo/app` | `secret-key`, `internal-token`, `jwt-secret`, `lfs-jwt-secret` |
+
+The `app` keys encrypt stored credentials (2FA, mirror tokens), so a restore needs them and
+the volumes. Don't regenerate them on a running instance.
 
 ## Apps (GitOps with Argo CD)
 

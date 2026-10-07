@@ -1,0 +1,4 @@
+---
+# https://code.forgejo.org/forgejo-helm/forgejo-helm
+# Chart settings live in ../files/values.yaml, secrets in ../files/external-secrets.yaml
+forgejo_chart_version: "17.2.0"

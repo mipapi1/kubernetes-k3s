@@ -1,0 +1,83 @@
+---
+# Runs on the control node against the cluster's kubeconfig context.
+# Forgejo is installed here rather than through Argo CD because Argo CD reads the
+# apps from Forgejo: a broken Forgejo must not be needed to fix Forgejo.
+# Needs the external_secrets and cloudnative_pg roles, and the Vault entries listed
+# in files/external-secrets.yaml.
+- name: Create the forgejo namespace
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: forgejo
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Sync the secrets from Vault
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    src: "{{ role_path }}/files/external-secrets.yaml"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Wait for the secrets
+  kubernetes.core.k8s_info:
+    context: "{{ cluster_context }}"
+    kind: Secret
+    namespace: forgejo
+    name: "{{ item }}"
+  register: forgejo_secret
+  until: forgejo_secret.resources | length > 0
+  retries: 12
+  delay: 5
+  loop: [forgejo-admin, forgejo-db, forgejo-app-ini]
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Create the database
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    src: "{{ role_path }}/files/postgres.yaml"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Wait for the database
+  kubernetes.core.k8s_info:
+    api_version: postgresql.cnpg.io/v1
+    kind: Cluster
+    context: "{{ cluster_context }}"
+    namespace: forgejo
+    name: forgejo-db
+  register: forgejo_db
+  until: >-
+    forgejo_db.resources | length > 0 and
+    (forgejo_db.resources[0].status.readyInstances | default(0)) >= 1
+  retries: 60
+  delay: 10
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install Forgejo
+  kubernetes.core.helm:
+    name: forgejo
+    chart_ref: oci://code.forgejo.org/forgejo-helm/forgejo
+    chart_version: "{{ forgejo_chart_version }}"
+    release_namespace: forgejo
+    kube_context: "{{ cluster_context }}"
+    wait: true
+    wait_timeout: 10m
+    values_files:
+      - "{{ role_path }}/files/values.yaml"
+  delegate_to: localhost
+  become: false
+  run_once: true

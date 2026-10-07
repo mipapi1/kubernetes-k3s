@@ -14,3 +14,6 @@ longhorn_concurrent_rebuilds_per_node: 1
 # Backup + restore verified on 2026-10-04.
 longhorn_backup_nfs_options: "nfsvers=3,nolock,actimeo=1,soft,timeo=300,retry=2"
 longhorn_backup_target: "nfs://{{ nfs_server }}:{{ nfs_share }}?nfsOptions={{ longhorn_backup_nfs_options }}"
+# Nightly backup of every volume (RecurringJob "backup-nightly", group "default")
+longhorn_backup_cron: "30 3 * * *"
+longhorn_backup_retain: 7

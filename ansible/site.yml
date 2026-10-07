@@ -71,3 +71,21 @@
   roles:
     - role: external_secrets
       when: install_external_secrets | default(false)
+
+- name: Setup CloudNativePG (PostgreSQL operator)
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  tags: cloudnative_pg
+  roles:
+    - role: cloudnative_pg
+      when: install_cloudnative_pg | default(false)
+
+- name: Setup Forgejo (git server; Argo CD reads the apps from it)
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  tags: forgejo
+  roles:
+    - role: forgejo
+      when: install_forgejo | default(false)

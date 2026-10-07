@@ -11,8 +11,19 @@ spec:
     matchLabels: {app: postgres}
   template:
     metadata:
-      labels: {app: postgres}
+      labels: {app: postgres, homelab/disk-heavy: "true"}
     spec:
+      # Disk-heavy (database on Longhorn): prefer a node without another disk-heavy
+      # pod from any app, so they spread over the nodes instead of piling up on one.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                namespaceSelector: {}
+                labelSelector:
+                  matchLabels: {homelab/disk-heavy: "true"}
       containers:
         - name: postgres
           image: postgres:15.15

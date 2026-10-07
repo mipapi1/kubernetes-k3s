@@ -1,0 +1,19 @@
+---
+# Runs on the control node against the cluster's kubeconfig context.
+- name: Install the CloudNativePG operator
+  kubernetes.core.helm:
+    name: cnpg
+    chart_ref: cloudnative-pg
+    chart_repo_url: https://cloudnative-pg.github.io/charts
+    chart_version: "{{ cloudnative_pg_chart_version }}"
+    release_namespace: cnpg-system
+    create_namespace: true
+    kube_context: "{{ cluster_context }}"
+    wait: true
+    values:
+      resources:
+        requests: {cpu: 50m, memory: 128Mi}
+        limits: {memory: 512Mi}
+  delegate_to: localhost
+  become: false
+  run_once: true

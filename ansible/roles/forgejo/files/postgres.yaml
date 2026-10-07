@@ -1,0 +1,30 @@
+# Forgejo's database, run by the CloudNativePG operator (roles/cloudnative_pg).
+# Reachable in the namespace as forgejo-db-rw:5432 (TLS by default).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: forgejo-db
+  namespace: forgejo
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.6-minimal-trixie
+  # With a single instance the default PodDisruptionBudget would block draining its
+  # node (k3s upgrades, maintenance); Longhorn keeps the data replicated instead.
+  enablePDB: false
+  storage:
+    size: 5Gi
+  # Sized for one user: small shared buffers and few connections (Forgejo pools 20)
+  postgresql:
+    parameters:
+      shared_buffers: 64MB
+      max_connections: "50"
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+  # Creates the database and its owner; the operator keeps the owner's password
+  # equal to the forgejo-db Secret, so a new password in Vault is applied by itself.
+  bootstrap:
+    initdb:
+      database: forgejo
+      owner: forgejo
+      secret: {name: forgejo-db}

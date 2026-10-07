@@ -1,0 +1,21 @@
+# k3s ships CoreDNS with a single replica, so losing its node breaks DNS for every pod
+# until it is rescheduled (~5 min). k3s's manifest doesn't set `replicas` (its own
+# topologySpreadConstraints already spread the pods), so an autoscaler can own the
+# count without fighting k3s: at least 2, on different nodes.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: coredns
+  namespace: kube-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: coredns
+  minReplicas: 2
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 80}

@@ -33,11 +33,18 @@ k3s_cluster:
       # ServiceLB stays: it exposes Traefik on every node's :443, which HAProxy targets.
       disable:
         - local-storage
+      # etcd shares each node's single disk with Longhorn. With the defaults (100 ms
+      # heartbeat, 1 s election timeout) a few seconds of disk contention cost the
+      # leader its lease and k3s restarted (2026-10-06/07). Tolerate short stalls.
+      etcd-arg:
+        - heartbeat-interval=500
+        - election-timeout=5000
 
     # Copied to /var/lib/rancher/k3s/server/manifests and applied by k3s
     extra_manifests:
       - "{{ inventory_dir }}/manifests/traefik-config.yaml"
       - "{{ inventory_dir }}/manifests/coredns-custom.yaml"
+      - "{{ inventory_dir }}/manifests/coredns-replicas.yaml"
 
     # Storage
     nfs_server: "10.0.25.10"
@@ -48,6 +55,8 @@ k3s_cluster:
     install_longhorn: true
     install_argocd: true
     install_external_secrets: true
+    install_cloudnative_pg: true
+    install_forgejo: true
     # TLS is terminated by HAProxy on OPNsense (ACME certs), so cert-manager isn't needed yet
     install_cert_manager: false
     cert_manager_email: "admin@agathla.com"

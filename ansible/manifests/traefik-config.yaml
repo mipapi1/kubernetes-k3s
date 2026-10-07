@@ -10,6 +10,21 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    # Every web app goes through Traefik: run two, on different nodes, so losing a
+    # node (or a Traefik restart) doesn't take the sites down. ServiceLB on each node
+    # forwards :443 to whichever Traefik is alive.
+    deployment:
+      replicas: 2
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: traefik
     ports:
       web:
         forwardedHeaders:

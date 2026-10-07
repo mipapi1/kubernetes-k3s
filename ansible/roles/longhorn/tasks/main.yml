@@ -66,8 +66,35 @@
         # Per data engine since Longhorn 1.8
         defaultReplicaCount: '{"v1":"{{ longhorn_replica_count }}","v2":"{{ longhorn_replica_count }}"}'
         concurrentReplicaRebuildPerNodeLimit: "{{ longhorn_concurrent_rebuilds_per_node }}"
+        # When a node dies, its pods stay "Terminating" and keep their volumes attached
+        # to the dead node, so nothing can restart elsewhere. This deletes them so the
+        # apps come back on another node within minutes, without manual force-deletes.
+        nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
       defaultBackupStore:
         backupTarget: "{{ longhorn_backup_target }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# Nightly backups of every volume to the NAS. Volumes without recurring-job labels
+# belong to the "default" group, so new apps are covered automatically. Incremental;
+# keeps a week. One volume at a time, at night, to keep disk load (and etcd) calm.
+- name: Schedule nightly backups of all volumes
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: longhorn.io/v1beta2
+      kind: RecurringJob
+      metadata:
+        name: backup-nightly
+        namespace: longhorn-system
+      spec:
+        task: backup
+        cron: "{{ longhorn_backup_cron }}"
+        retain: "{{ longhorn_backup_retain | int }}"
+        concurrency: 1
+        groups: [default]
   delegate_to: localhost
   become: false
   run_once: true
