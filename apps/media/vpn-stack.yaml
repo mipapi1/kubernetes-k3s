@@ -33,7 +33,6 @@ spec:
             - {name: VPN_TYPE, value: wireguard}
             - {name: SERVER_COUNTRIES, value: United States}
             - {name: SERVER_CITIES, value: Philadelphia}
-            - {name: HEALTH_VPN_DURATION_INITIAL, value: 120s}
             - {name: HEALTH_SERVER_ADDRESS, value: ":9999"}
             # Traffic allowed outside the tunnel: pods, services, the K3s VLAN, the NAS
             - {name: FIREWALL_OUTBOUND_SUBNETS, value: "172.16.0.0/16,172.17.0.0/16,10.0.20.0/24,10.0.25.0/24"}
@@ -41,6 +40,13 @@ spec:
             - {name: FIREWALL_INPUT_PORTS, value: "8080,6789,9696,7878,8989,8686,6767,5055"}
           envFrom:
             - secretRef: {name: gluetun}
+          # The pod's network namespace outlives a gluetun restart, and the routing rules
+          # left behind make the new gluetun fail ("ip rule ... file exists") until the
+          # whole pod is recreated. Clear them on every start (gluetun wiki, Kubernetes).
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "(ip rule del table 51820; ip -6 rule del table 51820) || true"]
           startupProbe:
             httpGet: {path: /, port: 9999}
             periodSeconds: 5
