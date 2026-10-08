@@ -9,3 +9,16 @@ resources:
 configMapGenerator:
   - name: ente-admin-app
     files: [app.py]
+  # Ente's artwork for the page (served by app.py under /media/). Too big (~400 KiB) for
+  # client-side apply's last-applied annotation (256 KiB max), so Argo CD applies it
+  # server-side.
+  - name: ente-admin-media
+    options:
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
+    files:
+      - media/ducky.png
+      - media/auth-ducky.svg
+      - media/feature-family-plan.DL40_CTS_TUNmf.webp
+      - media/rocketship.Q4U6SaLE_Z1OBy4P.webp
+      - media/floss-fund.png

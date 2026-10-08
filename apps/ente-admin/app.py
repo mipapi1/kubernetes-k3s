@@ -30,6 +30,12 @@ DB_USER, DB_NAME = "ente_dashboard", "ente_db"
 ACTIVE_WINDOW_S = 5 * 60  # "uploading now" = files added in the last 5 minutes
 DAYS = 14
 
+# Ente's artwork (apps/ente-admin/media, mounted read-only); served by name only
+MEDIA_DIR = "/media"
+TYPES = {".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml"}
+MEDIA = {n: TYPES[os.path.splitext(n)[1]] for n in (os.listdir(MEDIA_DIR) if os.path.isdir(MEDIA_DIR) else [])
+         if os.path.splitext(n)[1] in TYPES and not n.startswith(".")}
+
 with open("/secrets/key-encryption") as f:
     BOX = nacl.secret.SecretBox(base64.b64decode(f.read().strip()))
 
@@ -147,78 +153,104 @@ def snapshot():
 
 
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ente admin</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='30' cy='42' rx='22' ry='15' fill='%23FFD43B'/%3E%3Ccircle cx='40' cy='22' r='13' fill='%23FFD43B'/%3E%3Cpath d='M51 23c6-1 10 1 11 3-2 2-6 3-11 2z' fill='%23FF922B'/%3E%3Ccircle cx='43' cy='19' r='2.4' fill='%231a1a1a'/%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>ente admin</title>
+<link rel="icon" href="media/auth-ducky.svg" type="image/svg+xml">
 <style>
-:root{--bg:#f4f6f5;--bg2:#ffffff;--card:#ffffff;--fg:#121614;--mut:#68736d;--line:#e3e8e5;--acc:#1db954;--acc2:#0f9d58;--accbg:rgba(29,185,84,.10);--warn:#d97706;--warnbg:rgba(217,119,6,.10);--shadow:0 1px 2px rgba(16,24,20,.04),0 8px 24px rgba(16,24,20,.06)}
-@media (prefers-color-scheme:dark){:root{--bg:#0c0f0d;--bg2:#121614;--card:#151a17;--fg:#e9eeeb;--mut:#8d9a93;--line:#232b26;--accbg:rgba(29,185,84,.14);--warnbg:rgba(245,158,11,.14);--warn:#f59e0b;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35)}}
+:root{--g:#08c225;--g2:#05a31c;--g3:#0b8f1f;--y:#ffd43b;--bg:#f3f6f3;--bg2:#fbfcfb;--card:#fff;--fg:#111613;--mut:#66726b;--line:#e2e8e4;--accbg:rgba(8,194,37,.10);--warn:#d97706;--warnbg:rgba(217,119,6,.10);--shadow:0 1px 2px rgba(16,24,20,.04),0 10px 30px rgba(16,24,20,.07)}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0e0c;--bg2:#121714;--card:#141a16;--fg:#eaf0ec;--mut:#8e9b94;--line:#222b25;--accbg:rgba(8,194,37,.15);--warn:#f59e0b;--warnbg:rgba(245,158,11,.14);--shadow:0 1px 2px rgba(0,0,0,.35),0 12px 32px rgba(0,0,0,.4)}}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,var(--accbg),transparent 60%),var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
-.wrap{max-width:1280px;margin:0 auto;padding:24px 20px 48px}
-header{display:flex;align-items:center;gap:14px;margin-bottom:22px}
-.logo{width:46px;height:46px;flex:none;filter:drop-shadow(0 4px 10px rgba(255,180,0,.25))}
-.brand h1{font-size:22px;letter-spacing:-.02em;margin:0;font-weight:700}
-.brand h1 span{color:var(--acc)}
-.brand .sub{color:var(--mut);font-size:13px}
-.spacer{flex:1}
-.refresh{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:12px;white-space:nowrap}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 0 rgba(29,185,84,.6);animation:pulse 2s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(29,185,84,.55)}70%{box-shadow:0 0 0 8px rgba(29,185,84,0)}100%{box-shadow:0 0 0 0 rgba(29,185,84,0)}}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:28px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow)}
-.stat .k{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
-.stat .v{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
-.stat .v small{font-size:13px;color:var(--mut);font-weight:500;margin-left:4px}
-.inst{display:flex;align-items:baseline;gap:10px;margin:8px 0 12px}
-.inst h2{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
-.pill{font-size:12px;color:var(--mut);background:var(--bg2);border:1px solid var(--line);border-radius:99px;padding:2px 10px}
-.inst a{color:var(--mut);font-size:12px;text-decoration:none}.inst a:hover{color:var(--acc)}
-.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));margin-bottom:30px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease}
-.card:hover{transform:translateY(-2px)}
-.card.live{border-color:rgba(29,185,84,.55)}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Rounded","SF Pro Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 20px 40px}
+/* hero */
+.hero{position:relative;overflow:hidden;border-radius:28px;background:radial-gradient(900px 400px at 85% 30%,#2bd84a 0,transparent 60%),linear-gradient(135deg,var(--g),var(--g2));color:#fff;padding:28px 32px;min-height:220px;display:flex;align-items:center;gap:24px;box-shadow:0 20px 50px rgba(8,194,37,.25)}
+.hero:after{content:"";position:absolute;top:-60%;left:0;width:90px;height:220%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:shine 7s ease-in-out infinite;pointer-events:none}
+.hero .txt{position:relative;z-index:1;flex:1;min-width:0}
+.hero h1{margin:0;font-size:44px;line-height:1;font-weight:850;letter-spacing:-.03em}
+.hero h1 .tag{display:inline-block;background:#fff;color:var(--g2);font-size:22px;padding:4px 14px;border-radius:14px;vertical-align:middle;margin-left:8px;transform:rotate(-3deg);animation:rot5 4s ease-in-out infinite}
+.hero p{margin:10px 0 16px;opacity:.92;font-size:15px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:rgba(0,0,0,.18);backdrop-filter:blur(4px);border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+.art{position:relative;width:300px;height:220px;flex:none;display:grid;place-items:center}
+.rays{position:absolute;width:420px;height:420px;border-radius:50%;background:repeating-conic-gradient(rgba(255,212,59,.35) 0 8deg,transparent 8deg 22deg);-webkit-mask:radial-gradient(circle,#000 20%,transparent 68%);mask:radial-gradient(circle,#000 20%,transparent 68%);animation:spin360 40s linear infinite}
+.duck{position:relative;width:270px;filter:drop-shadow(0 14px 18px rgba(0,0,0,.25));animation:flex 3.2s ease-in-out infinite;transform-origin:50% 90%;cursor:pointer}
+.duck:hover{animation:rot5 .6s ease-in-out infinite}
+/* ticker */
+.ticker{margin:14px 0 22px;border-radius:16px;background:var(--card);border:1px solid var(--line);overflow:hidden;box-shadow:var(--shadow);-webkit-mask:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.track{display:flex;width:max-content;animation:scroll 45s linear infinite}
+.ticker:hover .track{animation-play-state:paused}
+.item{display:flex;align-items:center;gap:8px;padding:11px 26px;white-space:nowrap;font-size:13px;border-right:1px solid var(--line)}
+.item b{font-weight:650}.item .m{color:var(--mut)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:28px}
+.stat{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow);min-height:118px}
+.stat .k{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.stat .v{font-size:30px;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+.stat .s{color:var(--mut);font-size:12.5px}
+.stat img{position:absolute;right:-6px;bottom:-8px;height:96px;opacity:.95;transition:transform .3s}
+.stat:hover img{transform:rotate(-4deg) scale(1.05)}
+.stat.go img{animation:rot5 1s ease-in-out infinite}
+.stat.go{border-color:rgba(8,194,37,.5)}
+/* sections and cards */
+.inst{display:flex;align-items:center;gap:10px;margin:6px 0 14px;flex-wrap:wrap}
+.inst h2{font-size:19px;margin:0;font-weight:800;letter-spacing:-.02em}
+.pill{font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:99px;padding:3px 11px}
+.inst a{color:var(--mut);font-size:12px;text-decoration:none}.inst a:hover{color:var(--g)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));margin-bottom:32px}
+.card{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow);transition:transform .2s ease,box-shadow .2s ease}
+.card:hover{transform:translateY(-3px)}
+.card.enter{animation:slidein .7s cubic-bezier(.2,.8,.2,1) both}
+.card.live{border-color:rgba(8,194,37,.6)}
+.card.live:after{content:"";position:absolute;top:-50%;left:0;width:70px;height:200%;background:linear-gradient(90deg,transparent,rgba(8,194,37,.18),transparent);animation:shine 4s ease-in-out infinite;pointer-events:none}
 .head{display:flex;align-items:center;gap:12px}
-.av{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;font-size:16px}
-.who{min-width:0;flex:1}
-.email{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-weight:800;color:#fff;flex:none;font-size:17px}
+.who{min-width:0;flex:1}.email{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meta{color:var(--mut);font-size:12px}
-.status{font-size:12px;border-radius:99px;padding:3px 10px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);display:flex;align-items:center;gap:6px}
-.status.on{color:var(--acc2);background:var(--accbg);border-color:transparent;font-weight:600}
-@media (prefers-color-scheme:dark){.status.on{color:var(--acc)}}
-.store{margin:16px 0 4px;display:flex;justify-content:space-between;font-size:13px}
-.store b{font-weight:650}
-.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
-.bar>div{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--acc2),var(--acc))}
+.status{font-size:12px;border-radius:99px;padding:4px 10px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);display:flex;align-items:center;gap:6px}
+.status.on{color:#fff;background:var(--g);border-color:transparent;font-weight:650}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.6s infinite}
+.store{margin:16px 0 6px;display:flex;justify-content:space-between;font-size:13px}.store b{font-weight:700}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar>div{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--g3),var(--g));transition:width 1s cubic-bezier(.2,.8,.2,1)}
 .bar>div.hot{background:linear-gradient(90deg,#f59e0b,#ef4444)}
 .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
-.mini div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
-.mini .n{font-weight:650;font-size:15px}.mini .l{color:var(--mut);font-size:11px}
-.chartlab{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;margin-top:2px}
+.mini div{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:8px 10px}
+.mini .n{font-weight:750;font-size:15px}.mini .l{color:var(--mut);font-size:11px}
+.chartlab{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;margin-top:3px}
 .sec{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
-.tag{font-size:11px;border-radius:8px;padding:2px 8px;background:var(--accbg);color:var(--acc2)}
-@media (prefers-color-scheme:dark){.tag{color:var(--acc)}}
-.tag.warn{background:var(--warnbg);color:var(--warn)}
+.tag2{font-size:11px;border-radius:8px;padding:2px 8px;background:var(--accbg);color:var(--g3);font-weight:600}
+@media (prefers-color-scheme:dark){.tag2{color:#3ee05a}}
+.tag2.warn{background:var(--warnbg);color:var(--warn)}.tag2.plain{background:var(--bg2);color:var(--mut);border:1px solid var(--line);font-weight:500}
 .devs{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 .dev{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px}
 .dev svg{width:16px;height:16px;flex:none;color:var(--mut)}
 .dev .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dev .t{color:var(--mut);font-size:12px;white-space:nowrap}
-.dev.fresh .t{color:var(--acc2);font-weight:600}
+.dev .t{color:var(--mut);font-size:12px;white-space:nowrap}.dev.fresh .t{color:var(--g);font-weight:700}
 details summary{cursor:pointer;color:var(--mut);font-size:12px;list-style:none;padding-top:4px}
 details summary::-webkit-details-marker{display:none}
-.err{color:var(--warn)}
-.skel{height:260px;border-radius:18px;background:linear-gradient(90deg,var(--card),var(--bg2),var(--card));background-size:200% 100%;animation:sh 1.2s infinite;border:1px solid var(--line)}
-@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
-footer{color:var(--mut);font-size:12px;text-align:center;margin-top:10px}
+.oops{display:flex;align-items:center;gap:16px}.oops img{height:90px}
+.skel{height:280px;border-radius:22px;background:linear-gradient(90deg,var(--card),var(--bg2),var(--card));background-size:200% 100%;animation:sk 1.2s infinite;border:1px solid var(--line)}
+footer{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--mut);font-size:12.5px;margin-top:6px}
+footer img{height:56px;animation:flex 4s ease-in-out infinite}
+@keyframes shine{0%{transform:translateX(-120px) rotate(25deg)}25%{transform:translateX(1400px) rotate(25deg)}100%{transform:translateX(1400px) rotate(25deg)}}
+@keyframes spin360{to{transform:rotate(360deg)}}
+@keyframes flex{0%,100%{transform:rotateY(0) translateY(0)}50%{transform:rotateY(15deg) translateY(-6px)}}
+@keyframes rot5{0%,100%{transform:rotate(0)}25%{transform:rotate(5deg)}75%{transform:rotate(-5deg)}}
+@keyframes slidein{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:none}}
+@keyframes scroll{to{transform:translateX(-50%)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}70%{box-shadow:0 0 0 7px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media (max-width:720px){.art{display:none}.hero h1{font-size:36px}}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 </style></head><body><div class="wrap">
-<header>
-<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="30" cy="42" rx="22" ry="15" fill="#FFD43B"/><path d="M12 40c4 8 14 11 22 9-10-1-17-5-22-9z" fill="#F5B800"/><circle cx="40" cy="22" r="13" fill="#FFD43B"/><path d="M51 23c6-1 10 1 11 3-2 2-6 3-11 2z" fill="#FF922B"/><circle cx="43" cy="19" r="2.4" fill="#1a1a1a"/><circle cx="43.8" cy="18.3" r=".8" fill="#fff"/></svg>
-<div class="brand"><h1>ente <span>admin</span></h1><div class="sub">Self-hosted photo servers · read-only overview</div></div>
-<div class="spacer"></div><div class="refresh"><span class="dot"></span><span id="stamp">loading…</span></div>
-</header>
+<section class="hero">
+<div class="txt"><h1>ente<span class="tag">admin</span></h1><p>Your self-hosted photo servers, at a glance. Read-only, refreshed every 30 seconds.</p>
+<div class="chips" id="chips"><span class="chip">loading…</span></div></div>
+<div class="art"><div class="rays"></div><img class="duck" src="media/ducky.png" alt="ente duck"></div>
+</section>
+<div class="ticker"><div class="track" id="track"></div></div>
 <div class="stats" id="stats"></div>
 <div id="root"><div class="grid"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
-<footer>File names, types and places are end-to-end encrypted and invisible to the server. Refreshes every 30 s.</footer>
+<footer><img src="media/auth-ducky.svg" alt=""><span>Photos, names, places and file types are end-to-end encrypted, so the server (and this page) never sees them.</span></footer>
 </div>
 <script>
 const fmtB=b=>{if(!b)return"0 B";const u=["B","KB","MB","GB","TB"];let i=Math.min(Math.floor(Math.log(b)/Math.log(1024)),4);return(b/1024**i).toFixed(i>2?1:0)+" "+u[i]};
@@ -226,51 +258,64 @@ const ago=t=>{if(!t)return"never";const s=Date.now()/1000-t;if(s<60)return"just 
 const day=t=>t?new Date(t*1000).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"–";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
+const name=e=>esc(String(e).split("@")[0]);
 const ICON={phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>',
 desktop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
 web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'};
 const kind=d=>/^Web/.test(d)?"web":/Desktop/.test(d)?"desktop":"phone";
+let first=true,lastTicker="";
 function chart(d,days){const m=Math.max(1,...d),w=320,h=54,bw=w/d.length;
 return`<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="uploads per day">`+
-d.map((v,i)=>{const bh=v?Math.max(3,v/m*(h-4)):2;return`<rect x="${i*bw+2}" y="${h-bh}" width="${bw-4}" height="${bh}" rx="3" fill="var(--acc)" opacity="${v?(i===d.length-1?1:.55):.15}"><title>${days[i]}: ${v.toLocaleString()} files</title></rect>`}).join("")+`</svg>
+d.map((v,i)=>{const bh=v?Math.max(3,v/m*(h-4)):2;return`<rect x="${i*bw+2}" y="${h-bh}" width="${bw-4}" height="${bh}" rx="3" fill="var(--g)" opacity="${v?(i===d.length-1?1:.55):.15}"><title>${days[i]}: ${v.toLocaleString()} files</title></rect>`}).join("")+`</svg>
 <div class="chartlab"><span>${days[0]}</span><span>${d.reduce((a,b)=>a+b,0).toLocaleString()} files in ${d.length} days</span><span>today</span></div>`}
 function dev(x){const fresh=x.last_seen&&Date.now()/1000-x.last_seen<600;return`<div class="dev${fresh?" fresh":""}">${ICON[kind(x.device)]}<span class="nm" title="${esc(x.device)}">${esc(x.device)}</span><span class="t">${ago(x.last_seen)}</span></div>`}
-function card(u,days){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
-const sec=(u.two_factor?'<span class="tag">2FA app</span>':"")+(u.email_mfa?'<span class="tag">email code</span>':"")+(!u.two_factor&&!u.email_mfa?'<span class="tag warn">password only</span>':"");
+function card(u,days,idx){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
+const sec=(u.two_factor?'<span class="tag2">2FA app</span>':"")+(u.email_mfa?'<span class="tag2">email code</span>':"")+(!u.two_factor&&!u.email_mfa?'<span class="tag2 warn">password only</span>':"");
 const devs=u.devices,shown=devs.slice(0,3),rest=devs.slice(3);
-return`<div class="card${u.uploading?" live":""}"><div class="head"><div class="av" style="background:linear-gradient(135deg,hsl(${h} 65% 55%),hsl(${(h+40)%360} 65% 45%))">${esc(ini)}</div>
+return`<div class="card${u.uploading?" live":""}${first?" enter":""}" style="${first?`animation-delay:${idx*70}ms`:""}"><div class="head"><div class="av" style="background:linear-gradient(135deg,hsl(${h} 70% 55%),hsl(${(h+40)%360} 70% 42%))">${esc(ini)}</div>
 <div class="who"><div class="email" title="${esc(u.email)}">${esc(u.email)}</div><div class="meta">since ${day(u.created)} · id ${u.id}</div></div>
 ${u.uploading?`<span class="status on"><span class="dot"></span>uploading · ${u.recent} / 5 min</span>`:`<span class="status">seen ${ago(u.last_seen)}</span>`}</div>
 <div class="store"><span><b>${fmtB(u.used)}</b> of ${fmtB(u.quota)}</span><span class="meta">${pct.toFixed(1)}%</span></div><div class="bar"><div class="${pct>90?"hot":""}" style="width:${pct}%"></div></div>
 <div class="mini"><div><div class="n">${u.files.toLocaleString()}</div><div class="l">files</div></div><div><div class="n">${fmtB(u.bytes)}</div><div class="l">originals</div></div><div><div class="n">${u.albums}</div><div class="l">albums</div></div><div><div class="n">${u.trash}</div><div class="l">in trash</div></div></div>
 ${chart(u.daily,days)}
-<div class="sec">${sec}<span class="tag" style="background:var(--bg2);color:var(--mut);border:1px solid var(--line)">last upload ${ago(u.last_upload)}</span><span class="tag" style="background:var(--bg2);color:var(--mut);border:1px solid var(--line)">plan until ${day(u.expiry)}</span></div>
+<div class="sec">${sec}<span class="tag2 plain">last upload ${ago(u.last_upload)}</span><span class="tag2 plain">plan until ${day(u.expiry)}</span></div>
 <div class="devs">${shown.map(dev).join("")||'<div class="meta">no devices</div>'}${rest.length?`<details><summary>+ ${rest.length} older session${rest.length>1?"s":""}</summary>${rest.map(dev).join("")}</details>`:""}</div></div>`}
-function stat(k,v,s){return`<div class="stat"><div class="k">${k}</div><div class="v">${v}${s?`<small>${s}</small>`:""}</div></div>`}
-async function load(){try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();const all=d.instances.flatMap(i=>i.users);
-const live=all.filter(u=>u.uploading);
-document.getElementById("stats").innerHTML=stat("Accounts",all.length,`on ${d.instances.length} servers`)+stat("Storage used",fmtB(all.reduce((a,u)=>a+u.used,0)))+stat("Files",all.reduce((a,u)=>a+u.files,0).toLocaleString())+stat("Uploading now",live.length,live.length?live.reduce((a,u)=>a+u.recent,0)+" files / 5 min":"idle");
-document.getElementById("stamp").textContent="updated "+new Date(d.generated*1000).toLocaleTimeString();
-document.getElementById("root").innerHTML=d.instances.map(i=>`<div class="inst"><h2>${esc(i.name)}</h2><span class="pill">${i.users.length} account${i.users.length===1?"":"s"} · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))}</span><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace("https://",""))} ↗</a></div>`+(i.error?`<div class="card err">Can't read this server: ${esc(i.error)}</div>`:`<div class="grid">${i.users.map(u=>card(u,i.days)).join("")}</div>`)).join("")}
-catch(e){document.getElementById("stamp").textContent="error loading data: "+e}}
+function stat(k,v,s,img,cls){return`<div class="stat ${cls||""}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s||""}</div>${img?`<img src="${img}" alt="">`:""}</div>`}
+function ticker(all){const items=all.map(u=>u.uploading?`<div class="item">🟢 <b>${name(u.email)}</b> is uploading <span class="m">${u.recent} files in the last 5 min</span></div>`:`<div class="item">📷 <b>${name(u.email)}</b> <span class="m">${u.files.toLocaleString()} files · ${fmtB(u.used)}</span></div>`);
+const html=items.join("");if(html===lastTicker)return;lastTicker=html;document.getElementById("track").innerHTML=html+html}
+async function load(){try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();const all=d.instances.flatMap(i=>i.users);const live=all.filter(u=>u.uploading);
+const used=all.reduce((a,u)=>a+u.used,0),files=all.reduce((a,u)=>a+u.files,0);
+document.getElementById("chips").innerHTML=`<span class="chip">👥 ${all.length} accounts</span><span class="chip">🗄️ ${d.instances.length} servers</span><span class="chip">${live.length?"🚀 "+live.length+" uploading":"😴 all quiet"}</span><span class="chip">⏱ ${new Date(d.generated*1000).toLocaleTimeString()}</span>`;
+ticker(all);
+document.getElementById("stats").innerHTML=stat("Accounts",all.length,`on ${d.instances.length} servers`,"media/feature-family-plan.DL40_CTS_TUNmf.webp")+stat("Storage used",fmtB(used),`${files.toLocaleString()} files`)+stat("Uploading now",live.length,live.length?live.reduce((a,u)=>a+u.recent,0)+" files in the last 5 min":"nobody right now","media/rocketship.Q4U6SaLE_Z1OBy4P.webp",live.length?"go":"");
+document.getElementById("root").innerHTML=d.instances.map(i=>`<div class="inst"><h2>${esc(i.name)}</h2><span class="pill">${i.users.length} account${i.users.length===1?"":"s"} · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))}</span><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace("https://",""))} ↗</a></div>`+(i.error?`<div class="card oops"><img src="media/floss-fund.png" alt=""><div><b>Can't reach this server right now.</b><div class="meta">${esc(i.error)}</div></div></div>`:`<div class="grid">${i.users.map((u,k)=>card(u,i.days,k)).join("")}</div>`)).join("");
+first=false}
+catch(e){document.getElementById("chips").innerHTML=`<span class="chip">⚠️ error loading data</span>`}}
 load();setInterval(load,30000);
 </script></body></html>"""
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path.split("?")[0] in ("/", "/index.html"):
+        path = self.path.split("?")[0]
+        cache = "no-store"
+        if path in ("/", "/index.html"):
             body, ctype = PAGE.encode(), "text/html; charset=utf-8"
-        elif self.path.split("?")[0] == "/api/data":
+        elif path == "/api/data":
             body, ctype = json.dumps(snapshot()).encode(), "application/json"
-        elif self.path == "/healthz":
+        elif path == "/healthz":
             body, ctype = b"ok", "text/plain"
+        elif path.startswith("/media/") and os.path.basename(path) in MEDIA:
+            name = os.path.basename(path)  # only names that exist in the media folder
+            with open(os.path.join(MEDIA_DIR, name), "rb") as f:
+                body = f.read()
+            ctype, cache = MEDIA[name], "public, max-age=86400"
         else:
             self.send_error(404)
             return
         self.send_response(200)
         self.send_header("Content-Type", ctype)
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache)
         self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()

@@ -52,11 +52,14 @@ spec:
             limits: {memory: 256Mi}
           volumeMounts:
             - {name: app, mountPath: /app, readOnly: true}
+            - {name: media, mountPath: /media, readOnly: true}
             - {name: deps, mountPath: /deps, readOnly: true}
             - {name: secrets, mountPath: /secrets, readOnly: true}
       volumes:
         - name: app
           configMap: {name: ente-admin-app}
+        - name: media
+          configMap: {name: ente-admin-media}
         - name: deps
           emptyDir: {}
         - name: tmp
