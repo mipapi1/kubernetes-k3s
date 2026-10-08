@@ -108,7 +108,7 @@ vault write auth/kubernetes/role/external-secrets \
 ```
 
 Re-deploy a single add-on without re-running the k3s install (which restarts every server):
-`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`).
+`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`).
 
 ## Forgejo (git server)
 
@@ -131,6 +131,26 @@ HTTPS only; sign-in is required to see anything and self-registration is off.
 
 The `app` keys encrypt stored credentials (2FA, mirror tokens), so a restore needs them and
 the volumes. Don't regenerate them on a running instance.
+
+## Authelia (login portal)
+
+https://auth.agathla.com, installed by the `authelia` role (`./deploy.sh --tags authelia`).
+One login (password + 2FA: authenticator app or passkey) in front of web UIs that don't
+have a good login of their own. An app is protected by adding Authelia's Traefik
+forwardAuth middleware to its Ingress; access rules live in the role's template
+(default: deny; group `admins` gets every protected app with 2FA).
+
+Users are defined in Vault, passwords only as argon2id hashes; password change/reset
+in the portal is off. Set or change a password:
+
+```bash
+ansible/roles/authelia/files/hash-password.sh | vault kv patch secret/k8s/authelia/users papi-password-hash=-
+```
+
+| Vault path | Keys |
+|---|---|
+| `secret/k8s/authelia/main` | `jwt-secret`, `session-secret`, `storage-encryption-key` (generated), `smtp-password` (Proton SMTP token) |
+| `secret/k8s/authelia/users` | `papi-email`, `papi-password-hash` |
 
 ## Apps (GitOps with Argo CD)
 

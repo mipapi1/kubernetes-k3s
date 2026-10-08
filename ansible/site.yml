@@ -89,3 +89,12 @@
   roles:
     - role: forgejo
       when: install_forgejo | default(false)
+
+- name: Setup Authelia (login portal with 2FA for the web UIs)
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  tags: authelia
+  roles:
+    - role: authelia
+      when: install_authelia | default(false)

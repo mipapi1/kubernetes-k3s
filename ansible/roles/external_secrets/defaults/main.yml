@@ -1,6 +1,6 @@
 ---
 # https://github.com/external-secrets/external-secrets/releases
-external_secrets_chart_version: "2.11.0"
+external_secrets_chart_version: "2.12.0"
 # Vault as seen from inside the cluster (resolved via the coredns-custom override)
 external_secrets_vault_server: "https://vault.agathla.com"
 # Vault side (configured by hand, see README): auth/kubernetes + role below,

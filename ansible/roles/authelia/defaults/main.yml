@@ -1,0 +1,12 @@
+---
+# https://github.com/authelia/authelia/releases
+authelia_image: ghcr.io/authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54
+
+# Login portal; every protected app redirects here
+authelia_url: https://auth.agathla.com
+# Session cookie covers all subdomains, so one login works for every protected app
+authelia_cookie_domain: agathla.com
+
+# Sender for 2FA registration codes (Proton SMTP, like Ente)
+authelia_smtp_username: noreply@agathla.com
+authelia_smtp_sender: "Authelia <noreply@agathla.com>"

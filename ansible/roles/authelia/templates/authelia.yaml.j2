@@ -1,0 +1,175 @@
+# Authelia: one login portal (password + 2FA) in front of the homelab web UIs.
+# Traefik asks it on every request to a protected app (forwardAuth); without a valid
+# session the browser is sent to {{ authelia_url }}.
+{% set authelia_config %}
+server:
+  address: 'tcp://:9091/'
+log:
+  level: info
+totp:
+  issuer: agathla.com
+webauthn:
+  display_name: Homelab
+authentication_backend:
+  # Users and password hashes come from Vault (read-only file): no self-service
+  # password changes or resets; change the hash in Vault instead.
+  password_change:
+    disable: true
+  password_reset:
+    disable: true
+  file:
+    path: /config/users/users_database.yml
+    watch: true
+    password:
+      algorithm: argon2
+access_control:
+  # Anything not explicitly allowed is refused. Only apps that use the Traefik
+  # middleware are protected at all; for those, admins get in with 2FA. Narrower rules
+  # (other groups, single apps) go above this one.
+  default_policy: deny
+  rules:
+    - domain: '*.{{ authelia_cookie_domain }}'
+      subject: 'group:admins'
+      policy: two_factor
+session:
+  cookies:
+    - domain: {{ authelia_cookie_domain }}
+      authelia_url: {{ authelia_url }}
+      expiration: 12h
+      inactivity: 1h
+      # No "remember me": a login never lasts longer than the 12 hours above
+      remember_me: -1
+regulation:
+  # 5 failed logins within 10 minutes lock the account for 15 minutes
+  max_retries: 5
+  find_time: 10m
+  ban_time: 15m
+storage:
+  # 2FA devices and login history; encrypted with the storage key from Vault
+  local:
+    path: /data/db.sqlite3
+notifier:
+  smtp:
+    address: 'submission://smtp.protonmail.ch:587'
+    username: {{ authelia_smtp_username }}
+    sender: '{{ authelia_smtp_sender }}'
+ntp:
+  # Report clock problems in the log instead of refusing to start
+  disable_failure: true
+{% endset %}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authelia
+  namespace: authelia
+data:
+  configuration.yml: |
+{{ authelia_config | indent(4, first=True) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-data
+  namespace: authelia
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  # SQLite and in-memory sessions: one instance
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: authelia}
+  template:
+    metadata:
+      labels: {app: authelia}
+      annotations:
+        # Restart when the configuration changes
+        homelab/config-hash: "{{ authelia_config | hash('sha256') | truncate(12, True, '') }}"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 8000
+        runAsGroup: 8000
+        runAsNonRoot: true
+        fsGroup: 8000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: authelia
+          image: {{ authelia_image }}
+          args: [--config, /config/configuration.yml]
+          env:
+            - {name: TZ, value: America/New_York}
+            # Secrets are read from files, never put into the config or the environment
+            - {name: AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE, value: /secrets/jwt-secret}
+            - {name: AUTHELIA_SESSION_SECRET_FILE, value: /secrets/session-secret}
+            - {name: AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE, value: /secrets/storage-encryption-key}
+            - {name: AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE, value: /secrets/smtp-password}
+          ports:
+            - {name: http, containerPort: 9091}
+          startupProbe:
+            httpGet: {path: /api/health, port: http}
+            periodSeconds: 3
+            failureThreshold: 40
+          livenessProbe:
+            httpGet: {path: /api/health, port: http}
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            # Each login hashes with argon2id (64 MiB), so leave room above the idle ~30 MiB
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: config, mountPath: /config/configuration.yml, subPath: configuration.yml, readOnly: true}
+            - {name: users, mountPath: /config/users, readOnly: true}
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          configMap: {name: authelia}
+        - name: users
+          secret: {secretName: authelia-users}
+        - name: secrets
+          secret: {secretName: authelia}
+        - name: data
+          persistentVolumeClaim: {claimName: authelia-data}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  selector: {app: authelia}
+  ports:
+    - {name: http, port: 9091, targetPort: http}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: {{ authelia_url | regex_replace('^https://', '') }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: authelia, port: {number: 9091}}

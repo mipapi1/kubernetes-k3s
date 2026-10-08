@@ -57,6 +57,7 @@ k3s_cluster:
     install_external_secrets: true
     install_cloudnative_pg: true
     install_forgejo: true
+    install_authelia: true
     # The repo Argo CD deploys apps/ from: Forgejo over its in-cluster Service (no
     # HAProxy/DNS in the path). The forgejo role sets up Argo CD's read-only access;
     # GitHub only holds a push mirror.

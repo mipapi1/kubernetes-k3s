@@ -1,0 +1,16 @@
+# https://ente-admin.agathla.com -> HAProxy (TLS) -> Traefik -> oauth2-proxy (Forgejo login)
+# Needs DNS ente-admin.agathla.com -> 10.0.20.10 (alias of the k3s entry).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ente-admin
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ente-admin.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: ente-admin, port: {number: 4180}}

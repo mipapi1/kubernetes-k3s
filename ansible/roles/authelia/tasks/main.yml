@@ -1,0 +1,52 @@
+---
+# Runs on the control node against the cluster's kubeconfig context.
+# Installed by Ansible (platform layer), not Argo CD: the login portal must not depend
+# on the apps it protects. Needs the external_secrets role and the Vault entries listed
+# in files/external-secrets.yaml.
+- name: Create the authelia namespace
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: authelia
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Sync the secrets from Vault
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    src: "{{ role_path }}/files/external-secrets.yaml"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Wait for the secrets
+  kubernetes.core.k8s_info:
+    context: "{{ cluster_context }}"
+    kind: Secret
+    namespace: authelia
+    name: "{{ item }}"
+  register: authelia_secret
+  until: authelia_secret.resources | length > 0
+  retries: 12
+  delay: 5
+  loop: [authelia, authelia-users]
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Deploy Authelia
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    template: authelia.yaml.j2
+    wait: true
+    wait_timeout: 300
+  delegate_to: localhost
+  become: false
+  run_once: true
