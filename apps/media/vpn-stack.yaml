@@ -31,6 +31,14 @@ spec:
                 labelSelector:
                   matchLabels: {homelab/disk-heavy: "true"}
       initContainers:
+        # Seerr runs as UID 1000; Jellyseerr (root) left root-owned files in the config
+        # volume. Fix ownership of that one volume on every start (no-op once correct).
+        - name: seerr-config-owner
+          image: ghcr.io/seerr-team/seerr:v3.5.0@sha256:27602401178d54f1964442287b9f23f67a3fa2252645ee8065839ea1c3f69e45
+          command: [chown, -R, "1000:1000", /app/config]
+          securityContext: {runAsUser: 0}
+          volumeMounts:
+            - {name: jellyseerr-config, mountPath: /app/config}
         # Native sidecar: starts first, the apps only start once the VPN is healthy
         - name: gluetun
           image: qmcgaw/gluetun:v3.41.3
@@ -158,16 +166,23 @@ spec:
           volumeMounts:
             - {name: bazarr-config, mountPath: /config}
             - {name: media, mountPath: /data}
-        - name: jellyseerr
-          image: fallenbagel/jellyseerr:2.7.3
+        # Seerr: the successor of Jellyseerr (merged with Overseerr). Same port, same
+        # config volume; it migrates Jellyseerr's database by itself on first start.
+        - name: seerr
+          image: ghcr.io/seerr-team/seerr:v3.5.0@sha256:27602401178d54f1964442287b9f23f67a3fa2252645ee8065839ea1c3f69e45
           env:
             - {name: TZ, value: America/New_York}
+          # The image runs as `node` (UID 1000), not root like Jellyseerr did
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
           resources:
             requests: {cpu: 20m, memory: 256Mi}
             limits: {memory: 1Gi}
           volumeMounts:
             - {name: jellyseerr-config, mountPath: /app/config}
-            - {name: media, mountPath: /data}
       volumes:
         - name: tun
           hostPath: {path: /dev/net/tun, type: CharDevice}
