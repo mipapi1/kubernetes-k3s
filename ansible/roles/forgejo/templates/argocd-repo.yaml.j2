@@ -1,0 +1,27 @@
+# Argo CD's read access to the apps repo in Forgejo: a repository Secret (label
+# argocd.argoproj.io/secret-type) built from Vault secret/k8s/argocd/forgejo (key: token).
+# The token belongs to the restricted Forgejo user "argocd" (read access to this repo
+# only, scope read:repository).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: forgejo-repo
+  namespace: argocd
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault}
+  target:
+    name: forgejo-repo
+    template:
+      engineVersion: v2
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      data:
+        type: git
+        url: "{{ argocd_apps_repo }}"
+        username: argocd
+        password: "{% raw %}{{ .token }}{% endraw %}"
+  data:
+    - secretKey: token
+      remoteRef: {key: k8s/argocd/forgejo, property: token}

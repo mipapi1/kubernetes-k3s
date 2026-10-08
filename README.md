@@ -127,13 +127,16 @@ HTTPS only; sign-in is required to see anything and self-registration is off.
 | `secret/k8s/forgejo/admin` | `username`, `password` |
 | `secret/k8s/forgejo/postgres` | `password` (the operator applies a new one by itself) |
 | `secret/k8s/forgejo/app` | `secret-key`, `internal-token`, `jwt-secret`, `lfs-jwt-secret` |
+| `secret/k8s/argocd/forgejo` | `token`: Argo CD's read-only access (restricted Forgejo user `argocd`, read on this repo) |
 
 The `app` keys encrypt stored credentials (2FA, mirror tokens), so a restore needs them and
 the volumes. Don't regenerate them on a running instance.
 
 ## Apps (GitOps with Argo CD)
 
-Argo CD (https://argocd.agathla.com, user `admin`) watches `apps/` on the `main` branch.
+Argo CD (https://argocd.agathla.com, user `admin`) watches `apps/` on the `main` branch of this
+repo **in Forgejo** (`argocd_apps_repo` in `inventory.yml`, read over Forgejo's in-cluster Service).
+GitHub only holds a push mirror: push to Forgejo, never to GitHub.
 **Each folder under `apps/` becomes an Application** named after the folder, deployed into a
 namespace of the same name (created automatically). Plain manifests or a `kustomization.yaml`
 both work.

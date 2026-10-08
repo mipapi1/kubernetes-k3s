@@ -81,3 +81,14 @@
   delegate_to: localhost
   become: false
   run_once: true
+
+# Argo CD reads the apps from Forgejo (argocd_apps_repo); here because it needs both
+# External Secrets and Forgejo, which are installed after Argo CD.
+- name: Give Argo CD read access to the apps repo
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    template: argocd-repo.yaml.j2
+  delegate_to: localhost
+  become: false
+  run_once: true

@@ -3,8 +3,8 @@
 # Chart settings live in ../files/values.yaml
 argocd_chart_version: "10.9.6"
 
-# GitOps: every directory under apps/ in this repo becomes an Argo CD Application
-# (same name, deployed to a namespace of the same name). Public repo, no credentials.
-argocd_apps_repo: https://github.com/mipapi1/kubernetes-k3s.git
+# GitOps: every directory under apps/ in argocd_apps_repo (set in inventory.yml, also
+# used by the forgejo role) becomes an Argo CD Application (same name, deployed to a
+# namespace of the same name).
 argocd_apps_revision: main
 argocd_apps_path: apps
