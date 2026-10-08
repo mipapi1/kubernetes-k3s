@@ -5,8 +5,9 @@ storage used/quota, file count and size, albums, trash, account and plan dates, 
 security (2FA / email codes), uploads per day, whether it is uploading right now, and
 its devices (phone model, OS, Ente version, desktop or web) with their last activity.
 
-https://ente-admin.agathla.com (DNS alias of the k3s entry). Login with Forgejo
-(oauth2-proxy in the same pod); only the email in Vault `allowed-email` gets in.
+https://ente-admin.agathla.com (DNS alias of the k3s entry). Login is Authelia (password +
+2FA, group `admins`) through Traefik's forwardAuth; a NetworkPolicy lets only Traefik reach
+the pod, so the login can't be bypassed.
 
 Not visible by design: file types, names, dates, places. Ente encrypts them end to end;
 the server only knows sizes and when files were added or changed. Real client IPs aren't
@@ -33,9 +34,6 @@ GRANT SELECT (user_id, app, user_agent, creation_time, last_used_at, is_deleted)
 |---|---|
 | `ente-db-password`, `prvtente-db-password` | password of `ente_dashboard` on each instance |
 | `key-encryption` | museum's `key.encryption` (decrypts account emails) |
-| `oauth-client-id`, `oauth-client-secret` | Forgejo OAuth2 app, redirect `https://ente-admin.agathla.com/oauth2/callback` |
-| `cookie-secret` | oauth2-proxy cookie key (32 random bytes, base64) |
-| `allowed-email` | the Forgejo account's email that may log in |
 
 The Python libraries are installed at pod start (pinned versions) until the dashboard
 gets its own image from Forgejo CI.

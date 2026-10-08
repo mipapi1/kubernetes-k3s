@@ -4,6 +4,7 @@ resources:
   - external-secret.yaml
   - deployment.yaml
   - ingress.yaml
+  - networkpolicy.yaml
 # The dashboard code; a change gets a new ConfigMap name, which restarts the pod
 configMapGenerator:
   - name: ente-admin-app

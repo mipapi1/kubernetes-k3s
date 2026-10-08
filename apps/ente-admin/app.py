@@ -4,7 +4,8 @@ Reads each instance's Postgres with a read-only role (SELECT on the few tables/c
 listed in README.md) and decrypts account emails with museum's key.encryption (NaCl
 secretbox, as museum does to send emails). Writes nothing anywhere.
 
-Only listens on 127.0.0.1: oauth2-proxy in the same pod is the only way in.
+Login is Authelia (Traefik forwardAuth on the Ingress); a NetworkPolicy lets only Traefik
+reach the pod, so the login can't be skipped.
 What Ente can't show by design: file types, names, dates or places (end-to-end
 encrypted); the server only knows sizes and when files were added or changed.
 """
@@ -211,4 +212,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", 8000), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", 8000), Handler).serve_forever()

@@ -1,6 +1,5 @@
-# The dashboard (app.py, 127.0.0.1:8000) and oauth2-proxy (:4180) in one pod. Only the
-# proxy is reachable from outside the pod, so every request needs a Forgejo login as
-# the allowed account (papi, with its 2FA). Later replaced by Authelia's middleware.
+# The dashboard (app.py, :8000). Login is Authelia (see ingress.yaml); only Traefik may
+# reach the pod (networkpolicy.yaml), so the login can't be bypassed.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,6 +42,10 @@ spec:
             - {name: PYTHONPATH, value: /deps}
             - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
             - {name: TZ, value: America/New_York}
+          ports:
+            - {name: http, containerPort: 8000}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
           securityContext: *restricted
           resources:
             requests: {cpu: 10m, memory: 48Mi}
@@ -50,40 +53,6 @@ spec:
           volumeMounts:
             - {name: app, mountPath: /app, readOnly: true}
             - {name: deps, mountPath: /deps, readOnly: true}
-            - {name: secrets, mountPath: /secrets, readOnly: true}
-        - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916
-          args:
-            - --http-address=0.0.0.0:4180
-            - --upstream=http://127.0.0.1:8000/
-            - --provider=oidc
-            - --provider-display-name=Forgejo
-            - --oidc-issuer-url=https://git.agathla.com
-            - --scope=openid email profile
-            - --redirect-url=https://ente-admin.agathla.com/oauth2/callback
-            - --client-secret-file=/secrets/oauth-client-secret
-            # Only the emails in this file get in (no --email-domain, so nobody else)
-            - --authenticated-emails-file=/secrets/allowed-emails
-            - --cookie-name=_ente_admin
-            - --cookie-secure=true
-            - --cookie-expire=12h
-            - --reverse-proxy=true
-            - --skip-provider-button=true
-            - --silence-ping-logging=true
-          env:
-            - name: OAUTH2_PROXY_CLIENT_ID
-              valueFrom: {secretKeyRef: {name: ente-admin, key: oauth-client-id}}
-            - name: OAUTH2_PROXY_COOKIE_SECRET
-              valueFrom: {secretKeyRef: {name: ente-admin, key: cookie-secret}}
-          ports:
-            - {name: http, containerPort: 4180}
-          readinessProbe:
-            httpGet: {path: /ping, port: http}
-          securityContext: *restricted
-          resources:
-            requests: {cpu: 10m, memory: 24Mi}
-            limits: {memory: 128Mi}
-          volumeMounts:
             - {name: secrets, mountPath: /secrets, readOnly: true}
       volumes:
         - name: app
@@ -102,4 +71,4 @@ metadata:
 spec:
   selector: {app: ente-admin}
   ports:
-    - {name: http, port: 4180, targetPort: http}
+    - {name: http, port: 8000, targetPort: http}
