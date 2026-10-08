@@ -17,6 +17,9 @@ spec:
   template:
     metadata:
       labels: {app: minio}
+      annotations:
+        # Bump to restart Silo after its root credentials change (read only at start)
+        homelab/credentials-rev: "2"
     spec:
       containers:
         - name: minio
