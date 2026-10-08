@@ -4,6 +4,9 @@
 {% set authelia_config %}
 server:
   address: 'tcp://:9091/'
+  # The image's Docker HEALTHCHECK file can't be rewritten on a read-only root filesystem
+  # (startup then fails without a reason); Kubernetes probes /api/health instead.
+  disable_healthcheck: true
 log:
   level: info
 totp:
@@ -96,6 +99,10 @@ spec:
         homelab/config-hash: "{{ authelia_config | hash('sha256') | truncate(12, True, '') }}"
     spec:
       automountServiceAccountToken: false
+      # Without this, Kubernetes injects AUTHELIA_PORT, AUTHELIA_SERVICE_HOST, ... for the
+      # Service named "authelia", and Authelia reads every AUTHELIA_* variable as config
+      # (AUTHELIA_PORT becomes the deprecated `port` and clashes with server.address).
+      enableServiceLinks: false
       securityContext:
         runAsUser: 8000
         runAsGroup: 8000
