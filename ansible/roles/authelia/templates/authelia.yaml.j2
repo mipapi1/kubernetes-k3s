@@ -165,11 +165,28 @@ spec:
   ports:
     - {name: http, port: 9091, targetPort: http}
 ---
+# After login Authelia sends the browser back to the app; without this the browser
+# passes "Referer: https://auth.agathla.com/" along, and apps with CSRF protection
+# (qBittorrent) reject the request as cross-site. The portal never needs a referrer.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: no-referrer
+  namespace: authelia
+spec:
+  headers:
+    # Replaces Authelia's own "strict-origin-when-cross-origin" (applied after the
+    # response, so it overrides the backend's header)
+    customResponseHeaders:
+      Referrer-Policy: no-referrer
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: authelia
   namespace: authelia
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: authelia-no-referrer@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
