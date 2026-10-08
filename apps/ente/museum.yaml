@@ -30,6 +30,9 @@ spec:
   template:
     metadata:
       labels: {app: museum}
+      annotations:
+        # Bump to restart museum after its credentials change (it reads them only at start)
+        homelab/credentials-rev: "2"
     spec:
       containers:
         - name: museum
