@@ -8,7 +8,7 @@ keep using `https://ente.agathla.com`.
 | `museum.yaml` | The API server (official `ghcr.io/ente/server`, pinned by digest) and its non-secret config. |
 | `postgres.yaml` | Postgres 15.15 on a Longhorn volume. |
 | `minio.yaml` | Silo (`pgsty/silo`, the maintained MinIO fork) serving the photos from the NAS (`/volume1/ente`, ~344 GB, not copied). Replaced MinIO in place on 2026-10-06. |
-| `external-secret.yaml` | DB password and MinIO credentials from Vault `secret/k8s/ente/*`; museum's `credentials.yaml` is rendered from them. |
+| `external-secret.yaml` | DB password, Silo root login and museum's own Silo user from Vault `secret/k8s/ente/*`; museum's `credentials.yaml` is rendered from them. |
 | `ingress.yaml` | `ente.agathla.com` (API) and `minio.agathla.com` (photo transfers). |
 
 `museum` and `minio` start at `replicas: 0`: two MinIO servers on the same data
@@ -28,7 +28,10 @@ directory corrupt it. Postgres runs from the start with an empty database.
   no rotation for these (data in Postgres is encrypted/hashed with them), so they stay.
   `jwt.secret` comes from Vault (`secret/k8s/ente/museum`); the Postgres password was
   rotated on 2026-10-06.
-- Give museum its own Silo user (bucket-scoped) instead of the weak root login.
+- museum uses its own Silo user `museum` (policy `museum-buckets`: only its three buckets,
+  no admin rights), from `museum-key`/`museum-secret` in Vault. The root login is only for
+  Silo itself; it was rotated on 2026-10-08 (the old one is in archived pre-k3s repos).
+  After changing either, bump `homelab/credentials-rev` in `museum.yaml` / `minio.yaml`.
 
 ## Rollback
 
