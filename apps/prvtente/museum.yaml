@@ -34,7 +34,7 @@ spec:
       labels: {app: museum}
       annotations:
         # Bump to restart museum after its credentials change (it reads them only at start)
-        homelab/credentials-rev: "2"
+        homelab/credentials-rev: "3"
     spec:
       containers:
         - name: museum
