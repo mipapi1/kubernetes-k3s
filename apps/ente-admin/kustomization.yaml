@@ -19,6 +19,6 @@ configMapGenerator:
     files:
       - media/ducky.png
       - media/auth-ducky.svg
-      - media/feature-family-plan.DL40_CTS_TUNmf.webp
-      - media/rocketship.Q4U6SaLE_Z1OBy4P.webp
+      - media/feature-family-plan.webp
+      - media/rocketship.webp
       - media/floss-fund.png
