@@ -97,7 +97,7 @@ def collect(inst):
                           "last_upload": None, "recent": 0, "albums": 0, "trash": 0,
                           "devices": [], "daily": [0] * DAYS}
 
-        cur.execute("""select owner_id, count(*), coalesce(sum((info->>'fileSize')::bigint), 0),
+        cur.execute("""select owner_id, count(*), coalesce(sum((info->>'fileSize')::bigint), 0)::bigint,
                               max(updation_time),
                               count(*) filter (where updation_time > %s)
                        from files group by owner_id""", (int((now - ACTIVE_WINDOW_S) * 1e6),))
