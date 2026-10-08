@@ -12,6 +12,7 @@ resources:
   - vpn-stack.yaml
   - plex.yaml
   - ingress.yaml
+  - networkpolicy.yaml
 patches:
   # Never let Argo CD delete a data volume because it disappeared from git
   - target:

@@ -1,0 +1,25 @@
+# The admin tools in vpn-stack have their own logins turned off; Authelia (via Traefik)
+# is their only login. So nothing may reach the pod except Traefik, or a pod in the
+# cluster could skip Authelia by calling vpn-stack:<port> directly. The apps talk to each
+# other over localhost inside the pod, which this doesn't touch; outgoing traffic is
+# unaffected (gluetun handles it).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vpn-stack-ingress
+spec:
+  podSelector:
+    matchLabels: {app: vpn-stack}
+  policyTypes: [Ingress]
+  ingress:
+    # Traefik (all web UIs, incl. Seerr which keeps its own Plex login)
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: traefik}
+    # kubelet health checks (gluetun's probes) come from the nodes
+    - from:
+        - ipBlock: {cidr: 10.0.20.11/32}
+        - ipBlock: {cidr: 10.0.20.12/32}
+        - ipBlock: {cidr: 10.0.20.13/32}
