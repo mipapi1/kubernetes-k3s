@@ -9,6 +9,9 @@ server:
   disable_healthcheck: true
 log:
   level: info
+# New users and new devices start with the authenticator-app code; a passkey stays
+# available under "Methods" (otherwise phones were offered passkey registration first)
+default_2fa_method: totp
 totp:
   issuer: agathla.com
 webauthn:
