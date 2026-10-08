@@ -108,7 +108,7 @@ spec:
             - {name: nzbget-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:2.6.5.5623-ls162
+          image: lscr.io/linuxserver/prowlarr:2.6.5.5623-ls163
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -143,7 +143,7 @@ spec:
             - {name: radarr-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: lidarr
-          image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls42
+          image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls43
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}
@@ -155,7 +155,7 @@ spec:
             - {name: lidarr-config, mountPath: /config}
             - {name: media, mountPath: /data}
         - name: bazarr
-          image: lscr.io/linuxserver/bazarr:v1.6.2-ls366
+          image: lscr.io/linuxserver/bazarr:v1.6.2-ls367
           env:
             - {name: PUID, value: "1000"}
             - {name: PGID, value: "1000"}

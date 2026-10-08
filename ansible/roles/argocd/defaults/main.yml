@@ -1,7 +1,7 @@
 ---
 # https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
 # Chart settings live in ../files/values.yaml
-argocd_chart_version: "10.9.6"
+argocd_chart_version: "10.10.0"
 
 # GitOps: every directory under apps/ in argocd_apps_repo (set in inventory.yml, also
 # used by the forgejo role) becomes an Argo CD Application (same name, deployed to a
