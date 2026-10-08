@@ -1,9 +1,26 @@
 # https://<app>.agathla.com -> HAProxy (TLS) -> Traefik -> app.
 # Each host needs a DNS override in OPNsense -> 10.0.20.10 (or one *.agathla.com wildcard).
+#
+# Admin tools sit behind Authelia (one login with 2FA, see the authelia Ansible role):
+# Traefik asks Authelia on every request and sends the browser to auth.agathla.com
+# without a valid session. Requests, Plex and its stats keep their own logins.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authelia
+spec:
+  forwardAuth:
+    address: http://authelia.authelia.svc.cluster.local:9091/api/authz/forward-auth
+    # Traefik only trusts X-Forwarded-* from HAProxy (traefik-config), so these are real
+    trustForwardHeader: true
+    authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: media
+  name: media-admin
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: media-authelia@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -77,6 +94,14 @@ spec:
                 name: vpn-stack
                 port:
                   number: 6767
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: media
+spec:
+  ingressClassName: traefik
+  rules:
     - host: jellyseerr.agathla.com
       http:
         paths:
