@@ -146,43 +146,112 @@ def snapshot():
     return {"generated": time.time(), "instances": out}
 
 
-PAGE = """<!doctype html><html><head><meta charset="utf-8">
+PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ente admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='30' cy='42' rx='22' ry='15' fill='%23FFD43B'/%3E%3Ccircle cx='40' cy='22' r='13' fill='%23FFD43B'/%3E%3Cpath d='M51 23c6-1 10 1 11 3-2 2-6 3-11 2z' fill='%23FF922B'/%3E%3Ccircle cx='43' cy='19' r='2.4' fill='%231a1a1a'/%3E%3C/svg%3E">
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--mut:#6b7280;--line:#e5e7eb;--acc:#0b7a52;--warn:#b45309;--bar:#16a34a}
-@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1a1d24;--fg:#e6e8ec;--mut:#9aa1ad;--line:#2a2f3a;--acc:#34d399;--warn:#fbbf24;--bar:#22c55e}}
-*{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,sans-serif}
-h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 8px}.mut{color:var(--mut)}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
-.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.email{font-weight:600;word-break:break-all}.badge{font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
-.live{color:#fff;background:var(--acc);border-color:var(--acc)}
-.meter{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:8px 0 4px}.meter>div{height:100%;background:var(--acc)}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin-top:8px}.kv span:nth-child(odd){color:var(--mut)}
-.dev{border-top:1px solid var(--line);margin-top:8px;padding-top:6px;font-size:13px}.dev div{display:flex;justify-content:space-between;gap:8px}
-svg{display:block;margin-top:8px}.err{color:var(--warn)}
-</style></head><body>
-<h1>Ente admin</h1><div class="mut" id="stamp">loading…</div><div id="root"></div>
+:root{--bg:#f4f6f5;--bg2:#ffffff;--card:#ffffff;--fg:#121614;--mut:#68736d;--line:#e3e8e5;--acc:#1db954;--acc2:#0f9d58;--accbg:rgba(29,185,84,.10);--warn:#d97706;--warnbg:rgba(217,119,6,.10);--shadow:0 1px 2px rgba(16,24,20,.04),0 8px 24px rgba(16,24,20,.06)}
+@media (prefers-color-scheme:dark){:root{--bg:#0c0f0d;--bg2:#121614;--card:#151a17;--fg:#e9eeeb;--mut:#8d9a93;--line:#232b26;--accbg:rgba(29,185,84,.14);--warnbg:rgba(245,158,11,.14);--warn:#f59e0b;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35)}}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,var(--accbg),transparent 60%),var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 20px 48px}
+header{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.logo{width:46px;height:46px;flex:none;filter:drop-shadow(0 4px 10px rgba(255,180,0,.25))}
+.brand h1{font-size:22px;letter-spacing:-.02em;margin:0;font-weight:700}
+.brand h1 span{color:var(--acc)}
+.brand .sub{color:var(--mut);font-size:13px}
+.spacer{flex:1}
+.refresh{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:12px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 0 rgba(29,185,84,.6);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(29,185,84,.55)}70%{box-shadow:0 0 0 8px rgba(29,185,84,0)}100%{box-shadow:0 0 0 0 rgba(29,185,84,0)}}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:28px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow)}
+.stat .k{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.stat .v{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.stat .v small{font-size:13px;color:var(--mut);font-weight:500;margin-left:4px}
+.inst{display:flex;align-items:baseline;gap:10px;margin:8px 0 12px}
+.inst h2{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+.pill{font-size:12px;color:var(--mut);background:var(--bg2);border:1px solid var(--line);border-radius:99px;padding:2px 10px}
+.inst a{color:var(--mut);font-size:12px;text-decoration:none}.inst a:hover{color:var(--acc)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));margin-bottom:30px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease}
+.card:hover{transform:translateY(-2px)}
+.card.live{border-color:rgba(29,185,84,.55)}
+.head{display:flex;align-items:center;gap:12px}
+.av{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;font-size:16px}
+.who{min-width:0;flex:1}
+.email{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{color:var(--mut);font-size:12px}
+.status{font-size:12px;border-radius:99px;padding:3px 10px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);display:flex;align-items:center;gap:6px}
+.status.on{color:var(--acc2);background:var(--accbg);border-color:transparent;font-weight:600}
+@media (prefers-color-scheme:dark){.status.on{color:var(--acc)}}
+.store{margin:16px 0 4px;display:flex;justify-content:space-between;font-size:13px}
+.store b{font-weight:650}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar>div{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--acc2),var(--acc))}
+.bar>div.hot{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
+.mini div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.mini .n{font-weight:650;font-size:15px}.mini .l{color:var(--mut);font-size:11px}
+.chartlab{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;margin-top:2px}
+.sec{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.tag{font-size:11px;border-radius:8px;padding:2px 8px;background:var(--accbg);color:var(--acc2)}
+@media (prefers-color-scheme:dark){.tag{color:var(--acc)}}
+.tag.warn{background:var(--warnbg);color:var(--warn)}
+.devs{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.dev{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px}
+.dev svg{width:16px;height:16px;flex:none;color:var(--mut)}
+.dev .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev .t{color:var(--mut);font-size:12px;white-space:nowrap}
+.dev.fresh .t{color:var(--acc2);font-weight:600}
+details summary{cursor:pointer;color:var(--mut);font-size:12px;list-style:none;padding-top:4px}
+details summary::-webkit-details-marker{display:none}
+.err{color:var(--warn)}
+.skel{height:260px;border-radius:18px;background:linear-gradient(90deg,var(--card),var(--bg2),var(--card));background-size:200% 100%;animation:sh 1.2s infinite;border:1px solid var(--line)}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+footer{color:var(--mut);font-size:12px;text-align:center;margin-top:10px}
+</style></head><body><div class="wrap">
+<header>
+<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="30" cy="42" rx="22" ry="15" fill="#FFD43B"/><path d="M12 40c4 8 14 11 22 9-10-1-17-5-22-9z" fill="#F5B800"/><circle cx="40" cy="22" r="13" fill="#FFD43B"/><path d="M51 23c6-1 10 1 11 3-2 2-6 3-11 2z" fill="#FF922B"/><circle cx="43" cy="19" r="2.4" fill="#1a1a1a"/><circle cx="43.8" cy="18.3" r=".8" fill="#fff"/></svg>
+<div class="brand"><h1>ente <span>admin</span></h1><div class="sub">Self-hosted photo servers · read-only overview</div></div>
+<div class="spacer"></div><div class="refresh"><span class="dot"></span><span id="stamp">loading…</span></div>
+</header>
+<div class="stats" id="stats"></div>
+<div id="root"><div class="grid"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+<footer>File names, types and places are end-to-end encrypted and invisible to the server. Refreshes every 30 s.</footer>
+</div>
 <script>
 const fmtB=b=>{if(!b)return"0 B";const u=["B","KB","MB","GB","TB"];let i=Math.min(Math.floor(Math.log(b)/Math.log(1024)),4);return(b/1024**i).toFixed(i>2?1:0)+" "+u[i]};
-const ago=t=>{if(!t)return"never";const s=Date.now()/1000-t;if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+" min ago";if(s<86400)return Math.floor(s/3600)+" h ago";return Math.floor(s/86400)+" d ago"};
-const day=t=>t?new Date(t*1000).toLocaleDateString():"–";
+const ago=t=>{if(!t)return"never";const s=Date.now()/1000-t;if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+" min ago";if(s<86400)return Math.floor(s/3600)+" h ago";const d=Math.floor(s/86400);return d<60?d+" d ago":new Date(t*1000).toLocaleDateString()};
+const day=t=>t?new Date(t*1000).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"–";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function bars(d,days){const m=Math.max(1,...d),w=300,h=40,bw=w/d.length;return`<svg width="100%" viewBox="0 0 ${w} ${h+12}" preserveAspectRatio="none">`+d.map((v,i)=>`<rect x="${i*bw+1}" y="${h-v/m*h}" width="${bw-2}" height="${v/m*h}" fill="var(--bar)"><title>${days[i]}: ${v}</title></rect>`).join("")+`<text x="0" y="${h+11}" font-size="9" fill="var(--mut)">${days[0]}</text><text x="${w}" y="${h+11}" font-size="9" text-anchor="end" fill="var(--mut)">today</text></svg>`}
-function card(u,days){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;
-return`<div class="card"><div class="top"><div class="email">${esc(u.email)}</div>${u.uploading?`<span class="badge live">uploading · ${u.recent} in 5 min</span>`:`<span class="badge">seen ${ago(u.last_seen)}</span>`}</div>
-<div class="meter"><div style="width:${pct}%"></div></div><div class="mut">${fmtB(u.used)} of ${fmtB(u.quota)} (${pct.toFixed(1)}%)</div>
-<div class="kv"><span>Files</span><span>${u.files.toLocaleString()} (${fmtB(u.bytes)})</span><span>Albums</span><span>${u.albums}</span>
-<span>In trash</span><span>${u.trash}</span><span>Last upload/change</span><span>${ago(u.last_upload)}</span>
-<span>Account since</span><span>${day(u.created)}</span><span>Plan until</span><span>${day(u.expiry)}</span>
-<span>Login security</span><span>${u.two_factor?"2FA app":""}${u.two_factor&&u.email_mfa?" + ":""}${u.email_mfa?"email code":""}${!u.two_factor&&!u.email_mfa?"password only":""}</span>
-<span>User id</span><span class="mut">${u.id}</span></div>
-<div class="mut" style="margin-top:8px">Files added/changed per day (${days.length} days)</div>${bars(u.daily,days)}
-<div class="dev"><div class="mut"><b>Devices</b><span>last active</span></div>${u.devices.map(d=>`<div><span>${esc(d.device)}</span><span class="mut">${ago(d.last_seen)}</span></div>`).join("")||'<div class="mut">none</div>'}</div></div>`}
-async function load(){try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();
-document.getElementById("stamp").textContent="updated "+new Date(d.generated*1000).toLocaleTimeString()+" · refreshes every 30 s · file types/names are end-to-end encrypted and not visible to the server";
-document.getElementById("root").innerHTML=d.instances.map(i=>`<h2>${esc(i.name)} <span class="mut">· ${i.users.length} users · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))} used</span></h2>`+(i.error?`<div class="card err">Can't read this instance: ${esc(i.error)}</div>`:`<div class="grid">${i.users.map(u=>card(u,i.days)).join("")}</div>`)).join("")}
+const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
+const ICON={phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>',
+desktop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'};
+const kind=d=>/^Web/.test(d)?"web":/Desktop/.test(d)?"desktop":"phone";
+function chart(d,days){const m=Math.max(1,...d),w=320,h=54,bw=w/d.length;
+return`<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="uploads per day">`+
+d.map((v,i)=>{const bh=v?Math.max(3,v/m*(h-4)):2;return`<rect x="${i*bw+2}" y="${h-bh}" width="${bw-4}" height="${bh}" rx="3" fill="var(--acc)" opacity="${v?(i===d.length-1?1:.55):.15}"><title>${days[i]}: ${v.toLocaleString()} files</title></rect>`}).join("")+`</svg>
+<div class="chartlab"><span>${days[0]}</span><span>${d.reduce((a,b)=>a+b,0).toLocaleString()} files in ${d.length} days</span><span>today</span></div>`}
+function dev(x){const fresh=x.last_seen&&Date.now()/1000-x.last_seen<600;return`<div class="dev${fresh?" fresh":""}">${ICON[kind(x.device)]}<span class="nm" title="${esc(x.device)}">${esc(x.device)}</span><span class="t">${ago(x.last_seen)}</span></div>`}
+function card(u,days){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
+const sec=(u.two_factor?'<span class="tag">2FA app</span>':"")+(u.email_mfa?'<span class="tag">email code</span>':"")+(!u.two_factor&&!u.email_mfa?'<span class="tag warn">password only</span>':"");
+const devs=u.devices,shown=devs.slice(0,3),rest=devs.slice(3);
+return`<div class="card${u.uploading?" live":""}"><div class="head"><div class="av" style="background:linear-gradient(135deg,hsl(${h} 65% 55%),hsl(${(h+40)%360} 65% 45%))">${esc(ini)}</div>
+<div class="who"><div class="email" title="${esc(u.email)}">${esc(u.email)}</div><div class="meta">since ${day(u.created)} · id ${u.id}</div></div>
+${u.uploading?`<span class="status on"><span class="dot"></span>uploading · ${u.recent} / 5 min</span>`:`<span class="status">seen ${ago(u.last_seen)}</span>`}</div>
+<div class="store"><span><b>${fmtB(u.used)}</b> of ${fmtB(u.quota)}</span><span class="meta">${pct.toFixed(1)}%</span></div><div class="bar"><div class="${pct>90?"hot":""}" style="width:${pct}%"></div></div>
+<div class="mini"><div><div class="n">${u.files.toLocaleString()}</div><div class="l">files</div></div><div><div class="n">${fmtB(u.bytes)}</div><div class="l">originals</div></div><div><div class="n">${u.albums}</div><div class="l">albums</div></div><div><div class="n">${u.trash}</div><div class="l">in trash</div></div></div>
+${chart(u.daily,days)}
+<div class="sec">${sec}<span class="tag" style="background:var(--bg2);color:var(--mut);border:1px solid var(--line)">last upload ${ago(u.last_upload)}</span><span class="tag" style="background:var(--bg2);color:var(--mut);border:1px solid var(--line)">plan until ${day(u.expiry)}</span></div>
+<div class="devs">${shown.map(dev).join("")||'<div class="meta">no devices</div>'}${rest.length?`<details><summary>+ ${rest.length} older session${rest.length>1?"s":""}</summary>${rest.map(dev).join("")}</details>`:""}</div></div>`}
+function stat(k,v,s){return`<div class="stat"><div class="k">${k}</div><div class="v">${v}${s?`<small>${s}</small>`:""}</div></div>`}
+async function load(){try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();const all=d.instances.flatMap(i=>i.users);
+const live=all.filter(u=>u.uploading);
+document.getElementById("stats").innerHTML=stat("Accounts",all.length,`on ${d.instances.length} servers`)+stat("Storage used",fmtB(all.reduce((a,u)=>a+u.used,0)))+stat("Files",all.reduce((a,u)=>a+u.files,0).toLocaleString())+stat("Uploading now",live.length,live.length?live.reduce((a,u)=>a+u.recent,0)+" files / 5 min":"idle");
+document.getElementById("stamp").textContent="updated "+new Date(d.generated*1000).toLocaleTimeString();
+document.getElementById("root").innerHTML=d.instances.map(i=>`<div class="inst"><h2>${esc(i.name)}</h2><span class="pill">${i.users.length} account${i.users.length===1?"":"s"} · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))}</span><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace("https://",""))} ↗</a></div>`+(i.error?`<div class="card err">Can't read this server: ${esc(i.error)}</div>`:`<div class="grid">${i.users.map(u=>card(u,i.days)).join("")}</div>`)).join("")}
 catch(e){document.getElementById("stamp").textContent="error loading data: "+e}}
 load();setInterval(load,30000);
 </script></body></html>"""
@@ -202,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(body)
