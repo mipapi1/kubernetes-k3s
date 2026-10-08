@@ -140,17 +140,29 @@ have a good login of their own. An app is protected by adding Authelia's Traefik
 forwardAuth middleware to its Ingress; access rules live in the role's template
 (default: deny; group `admins` gets every protected app with 2FA).
 
-Users are defined in Vault, passwords only as argon2id hashes; password change/reset
-in the portal is off. Set or change a password:
+Who may open what: group `admins` gets every protected app; group `app-<name>` gets
+`<name>.agathla.com` (the list of apps is `authelia_apps` in the role's defaults; each
+needs the middleware on its Ingress). Users live entirely in Vault (one JSON value,
+passwords only as argon2id hashes) and are managed with a script; changes reach
+Authelia within about a minute, no deploy needed:
 
 ```bash
-ansible/roles/authelia/files/hash-password.sh | vault kv patch secret/k8s/authelia/users papi-password-hash=-
+cd ansible/roles/authelia/files
+./authelia-user.sh list
+./authelia-user.sh add <user> --email <email> --name "<Name>" --groups app-ente-admin
+./authelia-user.sh groups <user> +app-<name> -app-<other>
+./authelia-user.sh password <user>
+./authelia-user.sh disable <user>
 ```
+
+The script never saves without an active admin, and writes nothing if an edit fails.
+Password change/reset in the portal is off; new users register their 2FA device on
+first login (code by email).
 
 | Vault path | Keys |
 |---|---|
 | `secret/k8s/authelia/main` | `jwt-secret`, `session-secret`, `storage-encryption-key` (generated), `smtp-password` (Proton SMTP token) |
-| `secret/k8s/authelia/users` | `papi-email`, `papi-password-hash` |
+| `secret/k8s/authelia/users` | `users` (JSON, managed by `authelia-user.sh`) |
 
 ## Apps (GitOps with Argo CD)
 

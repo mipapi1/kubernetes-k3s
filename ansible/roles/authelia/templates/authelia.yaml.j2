@@ -27,10 +27,15 @@ authentication_backend:
       algorithm: argon2
 access_control:
   # Anything not explicitly allowed is refused. Only apps that use the Traefik
-  # middleware are protected at all; for those, admins get in with 2FA. Narrower rules
-  # (other groups, single apps) go above this one.
+  # middleware are protected at all. Per app (authelia_apps): admins and members of
+  # group app-<name> get in, with 2FA. Admins also get any other protected app.
   default_policy: deny
   rules:
+{% for app in authelia_apps %}
+    - domain: '{{ app }}.{{ authelia_cookie_domain }}'
+      subject: ['group:admins', 'group:app-{{ app }}']
+      policy: two_factor
+{% endfor %}
     - domain: '*.{{ authelia_cookie_domain }}'
       subject: 'group:admins'
       policy: two_factor
@@ -109,6 +114,40 @@ spec:
         runAsNonRoot: true
         fsGroup: 8000
         seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        # Kubernetes updates a mounted Secret by swapping a symlink, which Authelia's file
+        # watcher misses (new users only appeared after a restart, and a restart logs
+        # everyone out: sessions are in memory). So Authelia reads a plain copy on an
+        # emptyDir, and users-sync rewrites it in place whenever the Secret changes; the
+        # watcher sees that write and reloads the users without a restart.
+        - name: users-sync
+          image: {{ authelia_image }}
+          restartPolicy: Always
+          command:
+            - sh
+            - -c
+            - |
+              cp /users-src/users_database.yml /config/users/users_database.yml
+              while true; do
+                cmp -s /users-src/users_database.yml /config/users/users_database.yml ||
+                  { cat /users-src/users_database.yml > /config/users/users_database.yml; echo "users updated"; }
+                sleep 20
+              done
+          # Authelia starts only once the first copy is in place
+          startupProbe:
+            exec: {command: [sh, -c, "test -s /config/users/users_database.yml"]}
+            periodSeconds: 1
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 1m, memory: 4Mi}
+            limits: {memory: 16Mi}
+          volumeMounts:
+            - {name: users-src, mountPath: /users-src, readOnly: true}
+            - {name: users, mountPath: /config/users}
       containers:
         - name: authelia
           image: {{ authelia_image }}
@@ -146,8 +185,10 @@ spec:
       volumes:
         - name: config
           configMap: {name: authelia}
-        - name: users
+        - name: users-src
           secret: {secretName: authelia-users}
+        - name: users
+          emptyDir: {}
         - name: secrets
           secret: {secretName: authelia}
         - name: data

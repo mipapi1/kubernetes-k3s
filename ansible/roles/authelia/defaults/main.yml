@@ -10,3 +10,17 @@ authelia_cookie_domain: agathla.com
 # Sender for 2FA registration codes (Proton SMTP, like Ente)
 authelia_smtp_username: noreply@agathla.com
 authelia_smtp_sender: "Authelia <noreply@agathla.com>"
+
+# Apps behind Authelia. Each gets an access rule: group `admins` or group `app-<name>`
+# may open <name>.agathla.com (with 2FA). Give a user an app with
+#   files/authelia-user.sh groups <user> +app-<name>
+# A new app also needs the forwardAuth middleware on its Ingress.
+authelia_apps:
+  - ente-admin
+  - qbittorrent
+  - nzbget
+  - prowlarr
+  - radarr
+  - sonarr
+  - lidarr
+  - bazarr
