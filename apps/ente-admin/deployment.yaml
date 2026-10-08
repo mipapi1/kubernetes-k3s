@@ -62,6 +62,7 @@ spec:
             - {name: deps, mountPath: /deps, readOnly: true}
             - {name: secrets, mountPath: /secrets, readOnly: true}
             - {name: data, mountPath: /data}
+            - {name: directory, mountPath: /directory, readOnly: true}
       volumes:
         - name: app
           configMap: {name: ente-admin-app}
@@ -75,6 +76,8 @@ spec:
           secret: {secretName: ente-admin}
         - name: data
           persistentVolumeClaim: {claimName: ente-admin-data}
+        - name: directory
+          secret: {secretName: authelia-directory}
 ---
 # Sharing settings (SQLite); in the nightly Longhorn backups like every volume
 apiVersion: v1

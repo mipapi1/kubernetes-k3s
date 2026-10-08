@@ -78,6 +78,23 @@ def change_grant(add, username, instance, account_id, by):
                          (username, instance, account_id))
 
 
+DIRECTORY = os.environ.get("DIRECTORY", "/directory/directory.json")
+
+
+def share_candidates():
+    """Authelia users an admin can share with: active, may open this dashboard (group
+    app-ente-admin), and not admins (they see everything anyway). From the directory
+    synced from Vault (no emails or hashes in it)."""
+    try:
+        with open(DIRECTORY) as f:
+            people = json.load(f)
+    except Exception:
+        return []
+    return sorted(({"user": p["user"], "name": p.get("name") or p["user"]} for p in people
+                   if not p.get("disabled") and "app-ente-admin" in p.get("groups", [])
+                   and "admins" not in p.get("groups", [])), key=lambda p: p["user"])
+
+
 def viewer(headers):
     """The logged-in Authelia user, from the headers Traefik copied from Authelia."""
     groups = [g.strip() for g in (headers.get("Remote-Groups") or "").split(",") if g.strip()]
@@ -106,8 +123,11 @@ def for_viewer(snap, me):
                 users.append(u)
         if users or (me["admin"] and inst.get("error")):
             out.append(dict(inst, users=users))
-    return {"generated": snap["generated"], "instances": out,
-            "me": {"user": me["user"], "name": me["name"], "admin": me["admin"]}}
+    result = {"generated": snap["generated"], "instances": out,
+              "me": {"user": me["user"], "name": me["name"], "admin": me["admin"]}}
+    if me["admin"]:
+        result["candidates"] = share_candidates()
+    return result
 
 
 # Apple model identifiers seen in Ente's user agents -> marketing names
@@ -326,21 +346,34 @@ footer img{height:56px;animation:flex 4s ease-in-out infinite}
 @keyframes scroll{to{transform:translateX(-50%)}}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}70%{box-shadow:0 0 0 7px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
-.me{position:absolute;top:16px;right:18px;z-index:2;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.22);backdrop-filter:blur(6px);border-radius:99px;padding:5px 6px 5px 12px;font-size:12.5px;font-weight:600}
-.me a{color:var(--g2);background:#fff;border-radius:99px;padding:3px 10px;text-decoration:none;font-weight:700}
-.me a:hover{background:#f0fff3}
+.me{position:absolute;top:16px;right:18px;z-index:5}
+.mebtn{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:99px;padding:4px 10px 4px 4px;font:inherit;font-size:13px;font-weight:650;cursor:pointer;backdrop-filter:blur(8px);transition:background .15s}
+.mebtn:hover,.mebtn[aria-expanded="true"]{background:rgba(255,255,255,.26)}
+.meav{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--g2);font-weight:800;font-size:13px}
+.chev{width:14px;height:14px;opacity:.85;transition:transform .2s}.mebtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.menu{position:absolute;right:0;top:calc(100% + 8px);min-width:230px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.18);padding:8px;transform-origin:top right;animation:pop .14s ease-out}
+.menu[hidden]{display:none}
+.mhead{display:flex;align-items:center;gap:10px;padding:8px 8px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.mhead .meav{background:linear-gradient(135deg,var(--g),var(--g2));color:#fff;width:36px;height:36px;font-size:15px}
+.mhead b{display:block;font-size:14px}.mhead span{color:var(--mut);font-size:12px}
+.role{display:inline-block;margin-top:2px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:6px;padding:1px 6px;background:var(--accbg);color:var(--g3)}
+@media (prefers-color-scheme:dark){.role{color:#3ee05a}}
+.mitem{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:10px;color:var(--fg);text-decoration:none;font-size:13.5px;font-weight:600}
+.mitem svg{width:16px;height:16px;color:var(--mut)}
+.mitem:hover,.mitem:focus{background:var(--bg2);outline:none}.mitem.out:hover{color:#ef4444}.mitem.out:hover svg{color:#ef4444}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:none}}
 .share{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
 .sh{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--line);color:var(--fg);border-radius:99px;padding:2px 4px 2px 9px;font-weight:600}
 .sh button,.addsh,.shf button{font:inherit;cursor:pointer;border:0;border-radius:99px}
 .sh button{background:transparent;color:var(--mut);padding:0 5px}.sh button:hover{color:#ef4444}
 .addsh{background:var(--accbg);color:var(--g3);padding:3px 10px;font-weight:700}
 @media (prefers-color-scheme:dark){.addsh{color:#3ee05a}}
-.shf{display:inline-flex;gap:4px}.shf input{font:inherit;width:120px;border:1px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:99px;padding:3px 10px;outline:none}
-.shf input:focus{border-color:var(--g)}.shf button{background:var(--g);color:#fff;padding:3px 10px;font-weight:700}
+.shf{display:inline-flex;gap:4px}.shf select{font:inherit;max-width:200px;border:1px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:99px;padding:3px 10px;outline:none}
+.shf select:focus{border-color:var(--g)}.shf .hint{font-size:11.5px}.shf button{background:var(--g);color:#fff;padding:3px 10px;font-weight:700}
 .ownb{font-size:11px;font-weight:700;color:var(--g3);background:var(--accbg);border-radius:6px;padding:1px 6px;margin-left:6px}
 @media (prefers-color-scheme:dark){.ownb{color:#3ee05a}}
 .empty{display:flex;align-items:center;gap:20px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:var(--shadow)}.empty img{height:120px}
-@media (max-width:720px){.art{display:none}.hero h1{font-size:36px}.me{position:static;margin-bottom:12px;align-self:flex-start}}
+@media (max-width:720px){.art{display:none}.hero h1{font-size:36px}.me{top:12px;right:12px}.mebtn .nm{display:none}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 </style></head><body><div class="wrap">
 <section class="hero">
@@ -366,14 +399,24 @@ const ICON={phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 desktop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
 web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'};
 const kind=d=>/^Web/.test(d)?"web":/Desktop/.test(d)?"desktop":"phone";
-let first=true,lastTicker="",ME=null;
+let first=true,lastTicker="",ME=null,CANDS=[];
 function chart(u,days){const d=u.daily,bytes=u.daily_bytes||[],m=Math.max(1,...d),tot=d.reduce((a,b)=>a+b,0),totB=bytes.reduce((a,b)=>a+b,0);
 return`<div class="ch"><div class="chhead"><span>Uploads per day · last ${d.length} days</span><span><b>${tot.toLocaleString()}</b> files · ${fmtB(totB)}</span></div><div class="bars">`+
 d.map((v,i)=>`<span class="b${v?"":" zero"}${i===d.length-1?" today":""}" tabindex="0" data-day="${esc(days[i])}${i===d.length-1?" (today)":""}" data-n="${v}" data-b="${bytes[i]||0}"><i style="height:${v?Math.max(6,v/m*100):4}%"></i></span>`).join("")+
 `</div><div class="chartlab"><span>${esc(days[0])}</span><span>today</span></div></div>`}
 function dev(x){const fresh=x.last_seen&&Date.now()/1000-x.last_seen<600;return`<div class="dev${fresh?" fresh":""}">${ICON[kind(x.device)]}<span class="nm" title="${esc(x.device)}">${esc(x.device)}</span><span class="t">${ago(x.last_seen)}</span></div>`}
-function share(inst,u){if(!ME||!ME.admin)return"";
-return`<div class="share" data-inst="${esc(inst)}" data-id="${u.id}">👥 Visible to: <span class="sh" title="admins see every account">admins</span>${u.shared_with.map(n=>`<span class="sh">${esc(n)}<button data-act="rm" data-user="${esc(n)}" title="stop sharing with ${esc(n)}" aria-label="remove ${esc(n)}">✕</button></span>`).join("")}<button class="addsh" data-act="add">+ share</button><form class="shf" hidden><input name="u" placeholder="username" maxlength="64" autocomplete="off" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]*" required><button>Add</button></form></div>`}
+function share(inst,u){if(!ME||!ME.admin)return"";const avail=CANDS.filter(c=>!u.shared_with.includes(c.user));
+const picker=avail.length?`<form class="shf" hidden><select name="u" aria-label="share with" required><option value="">choose a user…</option>${avail.map(c=>`<option value="${esc(c.user)}">${esc(c.name)}${c.name!==c.user?" ("+esc(c.user)+")":""}</option>`).join("")}</select><button>Add</button></form>`
+:`<span class="shf hint" hidden>no more users to share with. Add one with authelia-user.sh … --groups app-ente-admin</span>`;
+return`<div class="share" data-inst="${esc(inst)}" data-id="${u.id}">👥 Visible to: <span class="sh" title="admins see every account">admins</span>${u.shared_with.map(n=>`<span class="sh">${esc(nameOf(n))}<button data-act="rm" data-user="${esc(n)}" title="stop sharing with ${esc(n)}" aria-label="remove ${esc(n)}">✕</button></span>`).join("")}<button class="addsh" data-act="add">+ share</button>${picker}</div>`}
+function userMenu(){const n=ME.name||ME.user,ini=esc((n[0]||"?").toUpperCase());
+return`<button class="mebtn" id="mebtn" aria-haspopup="menu" aria-expanded="false"><span class="meav">${ini}</span><span class="nm">${esc(n)}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></button>
+<div class="menu" id="menu" role="menu" hidden><div class="mhead"><span class="meav">${ini}</span><div><b>${esc(n)}</b><span>${esc(ME.user)}</span><br><span class="role">${ME.admin?"Admin":"Viewer"}</span></div></div>
+<a class="mitem out" role="menuitem" href="${LOGOUT}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>Log out</a></div>`}
+function toggleMenu(open){const b=document.getElementById("mebtn"),m=document.getElementById("menu");if(!b)return;const o=open===undefined?m.hidden:open;m.hidden=!o;b.setAttribute("aria-expanded",String(o));if(o)m.querySelector(".mitem").focus()}
+document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("#mebtn")){toggleMenu();return}if(!(e.target.closest&&e.target.closest("#menu")))toggleMenu(false)});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")toggleMenu(false)});
+function nameOf(user){const c=CANDS.find(x=>x.user===user);return c&&c.name!==user?c.name+" ("+user+")":user}
 function card(u,days,idx,inst){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
 const sec=(u.two_factor?'<span class="tag2">2FA app</span>':"")+(u.email_mfa?'<span class="tag2">email code</span>':"")+(!u.two_factor&&!u.email_mfa?'<span class="tag2 warn">password only</span>':"");
 const devs=u.devices,shown=devs.slice(0,3),rest=devs.slice(3);
@@ -390,8 +433,12 @@ function ticker(all){const items=all.map(u=>u.uploading?`<div class="item">🟢 
 const html=items.join("");if(html===lastTicker)return;lastTicker=html;document.getElementById("track").innerHTML=html+html}
 const LOGOUT="https://auth.agathla.com/logout?rd="+encodeURIComponent("https://ente-admin.agathla.com/");
 async function load(force){if(!force&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".shf"))return;
-try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();ME=d.me;
-const me=document.getElementById("me");me.hidden=false;me.innerHTML=`<span>👤 ${esc(ME.name||ME.user)}${ME.admin?" · admin":""}</span><a href="${LOGOUT}">Log out</a>`;
+try{const r=await fetch("api/data",{cache:"no-store",redirect:"manual"});
+// Session expired: Authelia answers with a redirect to its login. Reload the page so the
+// browser follows it to the login (and comes back here afterwards).
+if(r.type==="opaqueredirect"||r.status===401||r.status===403||r.status===302){location.reload();return}
+const d=await r.json();ME=d.me;CANDS=d.candidates||[];
+const me=document.getElementById("me");if(me.hidden){me.hidden=false;me.innerHTML=userMenu()}
 document.getElementById("sub").textContent=ME.admin?"Your self-hosted photo servers, at a glance. Read-only, refreshed every 30 seconds.":"Your Ente accounts at a glance, refreshed every 30 seconds.";const all=d.instances.flatMap(i=>i.users);const live=all.filter(u=>u.uploading);
 const used=all.reduce((a,u)=>a+u.used,0),files=all.reduce((a,u)=>a+u.files,0);
 document.getElementById("chips").innerHTML=`<span class="chip">👥 ${all.length} accounts</span><span class="chip">🗄️ ${d.instances.length} servers</span><span class="chip">${live.length?"🚀 "+live.length+" uploading":"😴 all quiet"}</span><span class="chip">⏱ ${new Date(d.generated*1000).toLocaleTimeString()}</span>`;
@@ -403,10 +450,10 @@ catch(e){document.getElementById("chips").innerHTML=`<span class="chip">⚠️ e
 async function grant(add,inst,id,user){const r=await fetch("api/grants",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({add,instance:inst,account_id:id,username:user})});
 if(!r.ok)alert("Couldn't change sharing ("+r.status+")");await load(true)}
 document.addEventListener("click",e=>{const btn=e.target.closest&&e.target.closest(".share button[data-act]");if(!btn)return;e.preventDefault();const row=btn.closest(".share");
-if(btn.dataset.act==="add"){const f=row.querySelector(".shf");f.hidden=false;btn.hidden=true;f.querySelector("input").focus()}
+if(btn.dataset.act==="add"){const f=row.querySelector(".shf");f.hidden=false;btn.hidden=true;const sel=f.querySelector("select");if(sel)sel.focus()}
 else if(btn.dataset.act==="rm"&&confirm("Stop sharing this account with "+btn.dataset.user+"?"))grant(false,row.dataset.inst,+row.dataset.id,btn.dataset.user)});
 document.addEventListener("submit",e=>{const f=e.target.closest&&e.target.closest(".shf");if(!f)return;e.preventDefault();const row=f.closest(".share");
-const u=f.querySelector("input").value.trim().toLowerCase();if(u)grant(true,row.dataset.inst,+row.dataset.id,u)});
+const u=f.querySelector("select").value;if(u)grant(true,row.dataset.inst,+row.dataset.id,u)});
 const tip=document.getElementById("tip");
 function showTip(b){const n=+b.dataset.n,by=+b.dataset.b,r=b.getBoundingClientRect();
 tip.innerHTML=`<b>${esc(b.dataset.day)}</b><br>${n?n.toLocaleString()+" file"+(n===1?"":"s")+" added or changed"+(by?" · "+fmtB(by):""):"no uploads"}`;
