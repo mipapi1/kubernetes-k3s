@@ -5,7 +5,13 @@ listed in README.md) and decrypts account emails with museum's key.encryption (N
 secretbox, as museum does to send emails). Writes nothing anywhere.
 
 Login is Authelia (Traefik forwardAuth on the Ingress); a NetworkPolicy lets only Traefik
-reach the pod, so the login can't be skipped.
+reach the pod, so the login can't be skipped, and the Remote-User/-Email/-Groups headers
+Traefik copies from Authelia's answer can be trusted.
+
+Who sees what: group `admins` sees every account and manages sharing; anyone else sees
+the Ente account(s) whose email matches their Authelia email, plus accounts an admin
+shared with their username (stored in a small SQLite file on the pod's volume). The
+filtering happens here, so a browser never receives accounts it may not see.
 What Ente can't show by design: file types, names, dates or places (end-to-end
 encrypted); the server only knows sizes and when files were added or changed.
 """
@@ -13,6 +19,8 @@ import base64
 import json
 import os
 import re
+import sqlite3
+import threading
 import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -38,6 +46,69 @@ MEDIA = {n: TYPES[os.path.splitext(n)[1]] for n in (os.listdir(MEDIA_DIR) if os.
 
 with open("/secrets/key-encryption") as f:
     BOX = nacl.secret.SecretBox(base64.b64decode(f.read().strip()))
+
+# Sharing: which Authelia user may see which account (besides their own)
+GRANTS_DB = os.environ.get("GRANTS_DB", "/data/grants.db")
+GRANTS_LOCK = threading.Lock()
+USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+PUBLIC_ORIGIN = "https://ente-admin.agathla.com"
+
+
+def grants_db():
+    conn = sqlite3.connect(GRANTS_DB, timeout=5)
+    conn.execute("""create table if not exists grants (
+        username text not null, instance text not null, account_id integer not null,
+        granted_by text not null, granted_at real not null,
+        primary key (username, instance, account_id))""")
+    return conn
+
+
+def load_grants():
+    with GRANTS_LOCK, grants_db() as conn:
+        return conn.execute("select username, instance, account_id from grants order by username").fetchall()
+
+
+def change_grant(add, username, instance, account_id, by):
+    with GRANTS_LOCK, grants_db() as conn:
+        if add:
+            conn.execute("insert or ignore into grants values (?, ?, ?, ?, ?)",
+                         (username, instance, account_id, by, time.time()))
+        else:
+            conn.execute("delete from grants where username = ? and instance = ? and account_id = ?",
+                         (username, instance, account_id))
+
+
+def viewer(headers):
+    """The logged-in Authelia user, from the headers Traefik copied from Authelia."""
+    groups = [g.strip() for g in (headers.get("Remote-Groups") or "").split(",") if g.strip()]
+    return {"user": (headers.get("Remote-User") or "").strip().lower(),
+            "name": (headers.get("Remote-Name") or "").strip(),
+            "email": (headers.get("Remote-Email") or "").strip().lower(),
+            "admin": "admins" in groups}
+
+
+def for_viewer(snap, me):
+    """Only the accounts this user may see; admins also get who each account is shared with."""
+    grants = load_grants()
+    shared = {}
+    for username, instance, account_id in grants:
+        shared.setdefault((instance, account_id), []).append(username)
+    mine = {(i, a) for u, i, a in grants if u == me["user"]}
+    out = []
+    for inst in snap["instances"]:
+        users = []
+        for u in inst["users"]:
+            own = bool(me["email"]) and u["email"].lower() == me["email"]
+            if me["admin"] or own or (inst["name"], u["id"]) in mine:
+                u = dict(u, own=own)
+                if me["admin"]:
+                    u["shared_with"] = shared.get((inst["name"], u["id"]), [])
+                users.append(u)
+        if users or (me["admin"] and inst.get("error")):
+            out.append(dict(inst, users=users))
+    return {"generated": snap["generated"], "instances": out,
+            "me": {"user": me["user"], "name": me["name"], "admin": me["admin"]}}
+
 
 # Apple model identifiers seen in Ente's user agents -> marketing names
 IPHONES = {
@@ -255,11 +326,26 @@ footer img{height:56px;animation:flex 4s ease-in-out infinite}
 @keyframes scroll{to{transform:translateX(-50%)}}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}70%{box-shadow:0 0 0 7px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
-@media (max-width:720px){.art{display:none}.hero h1{font-size:36px}}
+.me{position:absolute;top:16px;right:18px;z-index:2;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.22);backdrop-filter:blur(6px);border-radius:99px;padding:5px 6px 5px 12px;font-size:12.5px;font-weight:600}
+.me a{color:var(--g2);background:#fff;border-radius:99px;padding:3px 10px;text-decoration:none;font-weight:700}
+.me a:hover{background:#f0fff3}
+.share{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
+.sh{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--line);color:var(--fg);border-radius:99px;padding:2px 4px 2px 9px;font-weight:600}
+.sh button,.addsh,.shf button{font:inherit;cursor:pointer;border:0;border-radius:99px}
+.sh button{background:transparent;color:var(--mut);padding:0 5px}.sh button:hover{color:#ef4444}
+.addsh{background:var(--accbg);color:var(--g3);padding:3px 10px;font-weight:700}
+@media (prefers-color-scheme:dark){.addsh{color:#3ee05a}}
+.shf{display:inline-flex;gap:4px}.shf input{font:inherit;width:120px;border:1px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:99px;padding:3px 10px;outline:none}
+.shf input:focus{border-color:var(--g)}.shf button{background:var(--g);color:#fff;padding:3px 10px;font-weight:700}
+.ownb{font-size:11px;font-weight:700;color:var(--g3);background:var(--accbg);border-radius:6px;padding:1px 6px;margin-left:6px}
+@media (prefers-color-scheme:dark){.ownb{color:#3ee05a}}
+.empty{display:flex;align-items:center;gap:20px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:var(--shadow)}.empty img{height:120px}
+@media (max-width:720px){.art{display:none}.hero h1{font-size:36px}.me{position:static;margin-bottom:12px;align-self:flex-start}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 </style></head><body><div class="wrap">
 <section class="hero">
-<div class="txt"><h1>ente<span class="tag">admin</span></h1><p>Your self-hosted photo servers, at a glance. Read-only, refreshed every 30 seconds.</p>
+<div class="me" id="me" hidden></div>
+<div class="txt"><h1>ente<span class="tag">admin</span></h1><p id="sub">Your self-hosted photo servers, at a glance. Read-only, refreshed every 30 seconds.</p>
 <div class="chips" id="chips"><span class="chip">loading…</span></div></div>
 <div class="art"><div class="rays"></div><img class="duck" src="media/ducky.png" alt="ente duck"></div>
 </section>
@@ -280,34 +366,47 @@ const ICON={phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 desktop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
 web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'};
 const kind=d=>/^Web/.test(d)?"web":/Desktop/.test(d)?"desktop":"phone";
-let first=true,lastTicker="";
+let first=true,lastTicker="",ME=null;
 function chart(u,days){const d=u.daily,bytes=u.daily_bytes||[],m=Math.max(1,...d),tot=d.reduce((a,b)=>a+b,0),totB=bytes.reduce((a,b)=>a+b,0);
 return`<div class="ch"><div class="chhead"><span>Uploads per day · last ${d.length} days</span><span><b>${tot.toLocaleString()}</b> files · ${fmtB(totB)}</span></div><div class="bars">`+
 d.map((v,i)=>`<span class="b${v?"":" zero"}${i===d.length-1?" today":""}" tabindex="0" data-day="${esc(days[i])}${i===d.length-1?" (today)":""}" data-n="${v}" data-b="${bytes[i]||0}"><i style="height:${v?Math.max(6,v/m*100):4}%"></i></span>`).join("")+
 `</div><div class="chartlab"><span>${esc(days[0])}</span><span>today</span></div></div>`}
 function dev(x){const fresh=x.last_seen&&Date.now()/1000-x.last_seen<600;return`<div class="dev${fresh?" fresh":""}">${ICON[kind(x.device)]}<span class="nm" title="${esc(x.device)}">${esc(x.device)}</span><span class="t">${ago(x.last_seen)}</span></div>`}
-function card(u,days,idx){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
+function share(inst,u){if(!ME||!ME.admin)return"";
+return`<div class="share" data-inst="${esc(inst)}" data-id="${u.id}">👥 Visible to: <span class="sh" title="admins see every account">admins</span>${u.shared_with.map(n=>`<span class="sh">${esc(n)}<button data-act="rm" data-user="${esc(n)}" title="stop sharing with ${esc(n)}" aria-label="remove ${esc(n)}">✕</button></span>`).join("")}<button class="addsh" data-act="add">+ share</button><form class="shf" hidden><input name="u" placeholder="username" maxlength="64" autocomplete="off" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]*" required><button>Add</button></form></div>`}
+function card(u,days,idx,inst){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
 const sec=(u.two_factor?'<span class="tag2">2FA app</span>':"")+(u.email_mfa?'<span class="tag2">email code</span>':"")+(!u.two_factor&&!u.email_mfa?'<span class="tag2 warn">password only</span>':"");
 const devs=u.devices,shown=devs.slice(0,3),rest=devs.slice(3);
 return`<div class="card${u.uploading?" live":""}${first?" enter":""}" style="${first?`animation-delay:${idx*70}ms`:""}"><div class="head"><div class="av" style="background:linear-gradient(135deg,hsl(${h} 70% 55%),hsl(${(h+40)%360} 70% 42%))">${esc(ini)}</div>
-<div class="who"><div class="email" title="${esc(u.email)}">${esc(u.email)}</div><div class="meta">since ${day(u.created)} · id ${u.id}</div></div>
+<div class="who"><div class="email" title="${esc(u.email)}">${esc(u.email)}${u.own?'<span class="ownb">you</span>':""}</div><div class="meta">since ${day(u.created)} · id ${u.id}</div></div>
 ${u.uploading?`<span class="status on"><span class="dot"></span>uploading · ${u.recent} / 5 min</span>`:`<span class="status">seen ${ago(u.last_seen)}</span>`}</div>
 <div class="store"><span><b>${fmtB(u.used)}</b> of ${fmtB(u.quota)}</span><span class="meta">${pct.toFixed(1)}%</span></div><div class="bar"><div class="${pct>90?"hot":""}" style="width:${pct}%"></div></div>
 <div class="mini"><div><div class="n">${u.files.toLocaleString()}</div><div class="l">files</div></div><div><div class="n">${fmtB(u.bytes)}</div><div class="l" title="Combined size of the uploaded files (without thumbnails); the bar above shows the quota usage">size</div></div><div><div class="n">${u.albums}</div><div class="l">albums</div></div><div><div class="n">${u.trash}</div><div class="l">in trash</div></div></div>
 ${chart(u,days)}
 <div class="sec">${sec}<span class="tag2 plain">last upload ${ago(u.last_upload)}</span><span class="tag2 plain">plan until ${day(u.expiry)}</span></div>
-<div class="devs">${shown.map(dev).join("")||'<div class="meta">no devices</div>'}${rest.length?`<details><summary>+ ${rest.length} older session${rest.length>1?"s":""}</summary>${rest.map(dev).join("")}</details>`:""}</div></div>`}
+<div class="devs">${shown.map(dev).join("")||'<div class="meta">no devices</div>'}${rest.length?`<details><summary>+ ${rest.length} older session${rest.length>1?"s":""}</summary>${rest.map(dev).join("")}</details>`:""}</div>${share(inst,u)}</div>`}
 function stat(k,v,s,img,cls){return`<div class="stat ${cls||""}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s||""}</div>${img?`<img src="${img}" alt="">`:""}</div>`}
 function ticker(all){const items=all.map(u=>u.uploading?`<div class="item">🟢 <b>${name(u.email)}</b> is uploading <span class="m">${u.recent} files in the last 5 min</span></div>`:`<div class="item">📷 <b>${name(u.email)}</b> <span class="m">${u.files.toLocaleString()} files · ${fmtB(u.used)}</span></div>`);
 const html=items.join("");if(html===lastTicker)return;lastTicker=html;document.getElementById("track").innerHTML=html+html}
-async function load(){try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();const all=d.instances.flatMap(i=>i.users);const live=all.filter(u=>u.uploading);
+const LOGOUT="https://auth.agathla.com/logout?rd="+encodeURIComponent("https://ente-admin.agathla.com/");
+async function load(force){if(!force&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".shf"))return;
+try{const r=await fetch("api/data",{cache:"no-store"});const d=await r.json();ME=d.me;
+const me=document.getElementById("me");me.hidden=false;me.innerHTML=`<span>👤 ${esc(ME.name||ME.user)}${ME.admin?" · admin":""}</span><a href="${LOGOUT}">Log out</a>`;
+document.getElementById("sub").textContent=ME.admin?"Your self-hosted photo servers, at a glance. Read-only, refreshed every 30 seconds.":"Your Ente accounts at a glance, refreshed every 30 seconds.";const all=d.instances.flatMap(i=>i.users);const live=all.filter(u=>u.uploading);
 const used=all.reduce((a,u)=>a+u.used,0),files=all.reduce((a,u)=>a+u.files,0);
 document.getElementById("chips").innerHTML=`<span class="chip">👥 ${all.length} accounts</span><span class="chip">🗄️ ${d.instances.length} servers</span><span class="chip">${live.length?"🚀 "+live.length+" uploading":"😴 all quiet"}</span><span class="chip">⏱ ${new Date(d.generated*1000).toLocaleTimeString()}</span>`;
 ticker(all);
 document.getElementById("stats").innerHTML=stat("Accounts",all.length,`on ${d.instances.length} servers`,"media/feature-family-plan.webp")+stat("Storage used",fmtB(used),`${files.toLocaleString()} files`)+stat("Uploading now",live.length,live.length?live.reduce((a,u)=>a+u.recent,0)+" files in the last 5 min":"nobody right now","media/rocketship.webp",live.length?"go":"");
-document.getElementById("root").innerHTML=d.instances.map(i=>`<div class="inst"><h2>${esc(i.name)}</h2><span class="pill">${i.users.length} account${i.users.length===1?"":"s"} · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))}</span><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace("https://",""))} ↗</a></div>`+(i.error?`<div class="card oops"><img src="media/floss-fund.png" alt=""><div><b>Can't reach this server right now.</b><div class="meta">${esc(i.error)}</div></div></div>`:`<div class="grid">${i.users.map((u,k)=>card(u,i.days,k)).join("")}</div>`)).join("");
+document.getElementById("root").innerHTML=!d.instances.length?`<div class="empty"><img src="media/floss-fund.png" alt=""><div><b>Nothing shared with you yet.</b><div class="meta">Ask an admin to share an account with your username (${esc(ME.user)}).</div></div></div>`:d.instances.map(i=>`<div class="inst"><h2>${esc(i.name)}</h2><span class="pill">${i.users.length} account${i.users.length===1?"":"s"} · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))}</span><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace("https://",""))} ↗</a></div>`+(i.error?`<div class="card oops"><img src="media/floss-fund.png" alt=""><div><b>Can't reach this server right now.</b><div class="meta">${esc(i.error)}</div></div></div>`:`<div class="grid">${i.users.map((u,k)=>card(u,i.days,k,i.name)).join("")}</div>`)).join("");
 first=false}
 catch(e){document.getElementById("chips").innerHTML=`<span class="chip">⚠️ error loading data</span>`}}
+async function grant(add,inst,id,user){const r=await fetch("api/grants",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({add,instance:inst,account_id:id,username:user})});
+if(!r.ok)alert("Couldn't change sharing ("+r.status+")");await load(true)}
+document.addEventListener("click",e=>{const btn=e.target.closest&&e.target.closest(".share button[data-act]");if(!btn)return;e.preventDefault();const row=btn.closest(".share");
+if(btn.dataset.act==="add"){const f=row.querySelector(".shf");f.hidden=false;btn.hidden=true;f.querySelector("input").focus()}
+else if(btn.dataset.act==="rm"&&confirm("Stop sharing this account with "+btn.dataset.user+"?"))grant(false,row.dataset.inst,+row.dataset.id,btn.dataset.user)});
+document.addEventListener("submit",e=>{const f=e.target.closest&&e.target.closest(".shf");if(!f)return;e.preventDefault();const row=f.closest(".share");
+const u=f.querySelector("input").value.trim().toLowerCase();if(u)grant(true,row.dataset.inst,+row.dataset.id,u)});
 const tip=document.getElementById("tip");
 function showTip(b){const n=+b.dataset.n,by=+b.dataset.b,r=b.getBoundingClientRect();
 tip.innerHTML=`<b>${esc(b.dataset.day)}</b><br>${n?n.toLocaleString()+" file"+(n===1?"":"s")+" added or changed"+(by?" · "+fmtB(by):""):"no uploads"}`;
@@ -331,7 +430,11 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             body, ctype = PAGE.encode(), "text/html; charset=utf-8"
         elif path == "/api/data":
-            body, ctype = json.dumps(snapshot()).encode(), "application/json"
+            me = viewer(self.headers)
+            if not me["user"]:  # only reachable through Authelia; no user means misconfiguration
+                self.send_error(403)
+                return
+            body, ctype = json.dumps(for_viewer(snapshot(), me)).encode(), "application/json"
         elif path == "/healthz":
             body, ctype = b"ok", "text/plain"
         elif path.startswith("/media/") and os.path.basename(path) in MEDIA:
@@ -347,6 +450,33 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache)
         self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:")
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        """Admins share/unshare an account with a username: {"add": bool, "username", "instance", "account_id"}."""
+        me = viewer(self.headers)
+        # Same-origin JSON requests only (blocks forged cross-site posts), and admins only
+        if (self.path.split("?")[0] != "/api/grants" or not me["admin"]
+                or self.headers.get("Origin") != PUBLIC_ORIGIN
+                or not (self.headers.get("Content-Type") or "").startswith("application/json")):
+            self.send_error(403)
+            return
+        try:
+            req = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length") or 0), 4096)))
+            username = str(req["username"]).strip().lower()
+            instance = str(req["instance"])
+            account_id = int(req["account_id"])
+            if not USERNAME_RE.match(username) or instance not in {i["name"] for i in INSTANCES}:
+                raise ValueError("invalid username or instance")
+        except Exception:
+            self.send_error(400)
+            return
+        change_grant(bool(req.get("add")), username, instance, account_id, me["user"])
+        body = b'{"ok": true}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 

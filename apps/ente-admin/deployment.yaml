@@ -6,6 +6,9 @@ metadata:
   name: ente-admin
 spec:
   replicas: 1
+  # The sharing database is on a ReadWriteOnce volume
+  strategy:
+    type: Recreate
   selector:
     matchLabels: {app: ente-admin}
   template:
@@ -17,6 +20,7 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         runAsNonRoot: true
+        fsGroup: 1000
         seccompProfile: {type: RuntimeDefault}
       initContainers:
         # Python libraries for the dashboard (Postgres driver, NaCl for the emails),
@@ -42,6 +46,8 @@ spec:
             - {name: PYTHONPATH, value: /deps}
             - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
             - {name: TZ, value: America/New_York}
+            # Who may see which account (managed by admins on the page)
+            - {name: GRANTS_DB, value: /data/grants.db}
           ports:
             - {name: http, containerPort: 8000}
           readinessProbe:
@@ -55,6 +61,7 @@ spec:
             - {name: media, mountPath: /media, readOnly: true}
             - {name: deps, mountPath: /deps, readOnly: true}
             - {name: secrets, mountPath: /secrets, readOnly: true}
+            - {name: data, mountPath: /data}
       volumes:
         - name: app
           configMap: {name: ente-admin-app}
@@ -66,6 +73,21 @@ spec:
           emptyDir: {}
         - name: secrets
           secret: {secretName: ente-admin}
+        - name: data
+          persistentVolumeClaim: {claimName: ente-admin-data}
+---
+# Sharing settings (SQLite); in the nightly Longhorn backups like every volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ente-admin-data
+  annotations:
+    # Never let Argo CD delete the data because the claim disappeared from git
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources: {requests: {storage: 1Gi}}
 ---
 apiVersion: v1
 kind: Service
