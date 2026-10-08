@@ -14,7 +14,7 @@ import json
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import nacl.secret
@@ -101,7 +101,7 @@ def collect(inst):
                           "two_factor": tfa, "email_mfa": emfa, "quota": quota or 0,
                           "expiry": us(expiry), "used": used, "files": 0, "bytes": 0,
                           "last_upload": None, "recent": 0, "albums": 0, "trash": 0,
-                          "devices": [], "daily": [0] * DAYS}
+                          "devices": [], "daily": [0] * DAYS, "daily_bytes": [0] * DAYS}
 
         cur.execute("""select owner_id, count(*), coalesce(sum((info->>'fileSize')::bigint), 0)::bigint,
                               max(updation_time),
@@ -111,13 +111,18 @@ def collect(inst):
             if uid in users:
                 users[uid].update(files=n, bytes=size, last_upload=us(last), recent=recent)
 
-        day0 = datetime.fromtimestamp(now, timezone.utc).date().toordinal() - (DAYS - 1)
-        cur.execute("""select owner_id, (updation_time / 86400000000)::bigint, count(*) from files
-                       where updation_time > %s group by 1, 2""", (int((now - DAYS * 86400) * 1e6),))
-        for uid, epoch_day, n in cur.fetchall():
-            idx = datetime.fromtimestamp(epoch_day * 86400, timezone.utc).date().toordinal() - day0
+        # Per-day counts in local time (TZ of the pod): bucket by hour in SQL, then map each
+        # hour to its local calendar day here.
+        day0 = datetime.fromtimestamp(now).date().toordinal() - (DAYS - 1)
+        cur.execute("""select owner_id, (updation_time / 3600000000)::bigint, count(*),
+                              coalesce(sum((info->>'fileSize')::bigint), 0)::bigint
+                       from files where updation_time > %s group by 1, 2""",
+                    (int((now - (DAYS + 1) * 86400) * 1e6),))
+        for uid, epoch_hour, n, size in cur.fetchall():
+            idx = datetime.fromtimestamp(epoch_hour * 3600).date().toordinal() - day0
             if uid in users and 0 <= idx < DAYS:
                 users[uid]["daily"][idx] += n
+                users[uid]["daily_bytes"][idx] += size
 
         cur.execute("select owner_id, count(*) from collections where not is_deleted group by 1")
         for uid, n in cur.fetchall():
@@ -139,7 +144,7 @@ def collect(inst):
         u["last_seen"] = max((d["last_seen"] or 0 for d in u["devices"]), default=None) or None
         u["uploading"] = u["recent"] > 0
     return {"name": inst["name"], "url": inst["url"], "users": list(users.values()),
-            "days": [datetime.fromordinal(day0 + i).strftime("%b %d") for i in range(DAYS)]}
+            "days": [datetime.fromordinal(day0 + i).strftime("%a, %b %-d") for i in range(DAYS)]}
 
 
 def snapshot():
@@ -215,7 +220,18 @@ body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,B
 .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
 .mini div{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:8px 10px}
 .mini .n{font-weight:750;font-size:15px}.mini .l{color:var(--mut);font-size:11px}
-.chartlab{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;margin-top:3px}
+.ch{margin-top:2px}
+.chhead{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;color:var(--mut);margin-bottom:6px}
+.chhead b{color:var(--fg);font-weight:650}
+.bars{display:flex;align-items:flex-end;gap:4px;height:58px}
+.bars .b{flex:1;height:100%;display:flex;align-items:flex-end;cursor:pointer;border-radius:6px;outline:none}
+.bars .b i{display:block;width:100%;border-radius:5px;background:var(--g);opacity:.5;transition:opacity .15s,transform .15s;transform-origin:bottom}
+.bars .b.zero i{opacity:.14}.bars .b.today i{opacity:1}
+.bars .b:hover i,.bars .b:focus i,.bars .b.sel i{opacity:1;transform:scaleY(1.06);box-shadow:0 0 0 2px var(--accbg)}
+.chartlab{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;margin-top:4px}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--fg);color:var(--bg);border-radius:10px;padding:7px 10px;font-size:12px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transform:translate(-50%,-110%) scale(.96);transition:opacity .12s,transform .12s;white-space:nowrap}
+#tip.on{opacity:1;transform:translate(-50%,-115%) scale(1)}
+#tip b{font-weight:700}
 .sec{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
 .tag2{font-size:11px;border-radius:8px;padding:2px 8px;background:var(--accbg);color:var(--g3);font-weight:600}
 @media (prefers-color-scheme:dark){.tag2{color:#3ee05a}}
@@ -249,6 +265,7 @@ footer img{height:56px;animation:flex 4s ease-in-out infinite}
 </section>
 <div class="ticker"><div class="track" id="track"></div></div>
 <div class="stats" id="stats"></div>
+<div id="tip" role="tooltip"></div>
 <div id="root"><div class="grid"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
 <footer><img src="media/auth-ducky.svg" alt=""><span>Photos, names, places and file types are end-to-end encrypted, so the server (and this page) never sees them.</span></footer>
 </div>
@@ -264,10 +281,10 @@ desktop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width
 web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'};
 const kind=d=>/^Web/.test(d)?"web":/Desktop/.test(d)?"desktop":"phone";
 let first=true,lastTicker="";
-function chart(d,days){const m=Math.max(1,...d),w=320,h=54,bw=w/d.length;
-return`<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="uploads per day">`+
-d.map((v,i)=>{const bh=v?Math.max(3,v/m*(h-4)):2;return`<rect x="${i*bw+2}" y="${h-bh}" width="${bw-4}" height="${bh}" rx="3" fill="var(--g)" opacity="${v?(i===d.length-1?1:.55):.15}"><title>${days[i]}: ${v.toLocaleString()} files</title></rect>`}).join("")+`</svg>
-<div class="chartlab"><span>${days[0]}</span><span>${d.reduce((a,b)=>a+b,0).toLocaleString()} files in ${d.length} days</span><span>today</span></div>`}
+function chart(u,days){const d=u.daily,bytes=u.daily_bytes||[],m=Math.max(1,...d),tot=d.reduce((a,b)=>a+b,0),totB=bytes.reduce((a,b)=>a+b,0);
+return`<div class="ch"><div class="chhead"><span>Uploads per day · last ${d.length} days</span><span><b>${tot.toLocaleString()}</b> files · ${fmtB(totB)}</span></div><div class="bars">`+
+d.map((v,i)=>`<span class="b${v?"":" zero"}${i===d.length-1?" today":""}" tabindex="0" data-day="${esc(days[i])}${i===d.length-1?" (today)":""}" data-n="${v}" data-b="${bytes[i]||0}"><i style="height:${v?Math.max(6,v/m*100):4}%"></i></span>`).join("")+
+`</div><div class="chartlab"><span>${esc(days[0])}</span><span>today</span></div></div>`}
 function dev(x){const fresh=x.last_seen&&Date.now()/1000-x.last_seen<600;return`<div class="dev${fresh?" fresh":""}">${ICON[kind(x.device)]}<span class="nm" title="${esc(x.device)}">${esc(x.device)}</span><span class="t">${ago(x.last_seen)}</span></div>`}
 function card(u,days,idx){const pct=u.quota?Math.min(100,u.used/u.quota*100):0;const ini=(u.email[0]||"?").toUpperCase();const h=hue(u.email);
 const sec=(u.two_factor?'<span class="tag2">2FA app</span>':"")+(u.email_mfa?'<span class="tag2">email code</span>':"")+(!u.two_factor&&!u.email_mfa?'<span class="tag2 warn">password only</span>':"");
@@ -277,7 +294,7 @@ return`<div class="card${u.uploading?" live":""}${first?" enter":""}" style="${f
 ${u.uploading?`<span class="status on"><span class="dot"></span>uploading · ${u.recent} / 5 min</span>`:`<span class="status">seen ${ago(u.last_seen)}</span>`}</div>
 <div class="store"><span><b>${fmtB(u.used)}</b> of ${fmtB(u.quota)}</span><span class="meta">${pct.toFixed(1)}%</span></div><div class="bar"><div class="${pct>90?"hot":""}" style="width:${pct}%"></div></div>
 <div class="mini"><div><div class="n">${u.files.toLocaleString()}</div><div class="l">files</div></div><div><div class="n">${fmtB(u.bytes)}</div><div class="l" title="Combined size of the uploaded files (without thumbnails); the bar above shows the quota usage">size</div></div><div><div class="n">${u.albums}</div><div class="l">albums</div></div><div><div class="n">${u.trash}</div><div class="l">in trash</div></div></div>
-${chart(u.daily,days)}
+${chart(u,days)}
 <div class="sec">${sec}<span class="tag2 plain">last upload ${ago(u.last_upload)}</span><span class="tag2 plain">plan until ${day(u.expiry)}</span></div>
 <div class="devs">${shown.map(dev).join("")||'<div class="meta">no devices</div>'}${rest.length?`<details><summary>+ ${rest.length} older session${rest.length>1?"s":""}</summary>${rest.map(dev).join("")}</details>`:""}</div></div>`}
 function stat(k,v,s,img,cls){return`<div class="stat ${cls||""}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s||""}</div>${img?`<img src="${img}" alt="">`:""}</div>`}
@@ -291,6 +308,18 @@ document.getElementById("stats").innerHTML=stat("Accounts",all.length,`on ${d.in
 document.getElementById("root").innerHTML=d.instances.map(i=>`<div class="inst"><h2>${esc(i.name)}</h2><span class="pill">${i.users.length} account${i.users.length===1?"":"s"} · ${fmtB(i.users.reduce((a,u)=>a+u.used,0))}</span><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace("https://",""))} ↗</a></div>`+(i.error?`<div class="card oops"><img src="media/floss-fund.png" alt=""><div><b>Can't reach this server right now.</b><div class="meta">${esc(i.error)}</div></div></div>`:`<div class="grid">${i.users.map((u,k)=>card(u,i.days,k)).join("")}</div>`)).join("");
 first=false}
 catch(e){document.getElementById("chips").innerHTML=`<span class="chip">⚠️ error loading data</span>`}}
+const tip=document.getElementById("tip");
+function showTip(b){const n=+b.dataset.n,by=+b.dataset.b,r=b.getBoundingClientRect();
+tip.innerHTML=`<b>${esc(b.dataset.day)}</b><br>${n?n.toLocaleString()+" file"+(n===1?"":"s")+" added or changed"+(by?" · "+fmtB(by):""):"no uploads"}`;
+tip.style.left=(r.left+r.width/2)+"px";tip.style.top=r.top+"px";tip.classList.add("on");
+document.querySelectorAll(".bars .b.sel").forEach(x=>x.classList.remove("sel"));b.classList.add("sel")}
+function hideTip(){tip.classList.remove("on");document.querySelectorAll(".bars .b.sel").forEach(x=>x.classList.remove("sel"))}
+document.addEventListener("mouseover",e=>{const b=e.target.closest&&e.target.closest(".bars .b");if(b)showTip(b)});
+document.addEventListener("mouseout",e=>{if(e.target.closest&&e.target.closest(".bars .b")&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest(".bars .b")))hideTip()});
+document.addEventListener("focusin",e=>{const b=e.target.closest&&e.target.closest(".bars .b");if(b)showTip(b)});
+document.addEventListener("focusout",hideTip);
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".bars .b");if(b)showTip(b);else hideTip()});
+window.addEventListener("scroll",hideTip,{passive:true});
 load();setInterval(load,30000);
 </script></body></html>"""
 
