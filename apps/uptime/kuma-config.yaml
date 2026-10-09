@@ -1,0 +1,58 @@
+# Applies kuma-config/monitors.json and the alert channels to Uptime Kuma after every
+# Argo CD sync of this app (so: whenever the files change). See kuma-config/configure.js.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: kuma-config
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault}
+  target:
+    name: kuma-config
+  data:
+    - {secretKey: ntfy-topic, remoteRef: {key: k8s/uptime/ntfy, property: topic}}
+    - {secretKey: smtp-password, remoteRef: {key: k8s/uptime/smtp, property: password}}
+    - {secretKey: smtp-to, remoteRef: {key: k8s/uptime/smtp, property: to}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuma-config
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: {app: kuma-config}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: configure
+          # Kuma's own image: same version as the server, and it ships socket.io-client
+          image: louislam/uptime-kuma:2.5.5-slim@sha256:9c56a772a7df53f444a404c579e87a27bd0c201375d00d6745a75bf8138f4342
+          command: ["node", "/config/configure.js"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: kuma-config}
+        - name: secrets
+          secret: {secretName: kuma-config}

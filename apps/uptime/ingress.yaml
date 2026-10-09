@@ -27,8 +27,8 @@ spec:
             backend:
               service: {name: uptime-kuma, port: {number: 3001}}
 ---
-# Kuma's own login gets turned off (Authelia does it), so only Traefik and the heartbeat
-# job may reach it; kubelet probes come from the nodes.
+# Kuma's own login gets turned off (Authelia does it), so only Traefik, the heartbeat job
+# and the config job (kuma-config.yaml) may reach it; kubelet probes come from the nodes.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -46,6 +46,8 @@ spec:
     - from:
         - podSelector:
             matchLabels: {app: heartbeat}
+        - podSelector:
+            matchLabels: {app: kuma-config}
     - from:
         - ipBlock: {cidr: 10.0.20.11/32}
         - ipBlock: {cidr: 10.0.20.12/32}

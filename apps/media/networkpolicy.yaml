@@ -18,6 +18,21 @@ spec:
             matchLabels: {kubernetes.io/metadata.name: kube-system}
           podSelector:
             matchLabels: {app.kubernetes.io/name: traefik}
+    # Uptime Kuma's health checks (web UI ports only)
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: uptime}
+          podSelector:
+            matchLabels: {app: uptime-kuma}
+      ports:
+        - {port: 8080}
+        - {port: 6789}
+        - {port: 9696}
+        - {port: 7878}
+        - {port: 8989}
+        - {port: 8686}
+        - {port: 6767}
+        - {port: 5055}
     # kubelet health checks (gluetun's probes) come from the nodes
     - from:
         - ipBlock: {cidr: 10.0.20.11/32}

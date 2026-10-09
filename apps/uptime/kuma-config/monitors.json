@@ -1,0 +1,57 @@
+{
+  "defaults": {
+    "interval": 60,
+    "retryInterval": 60,
+    "maxretries": 2,
+    "timeout": 48
+  },
+  "groups": [
+    {
+      "name": "Photos",
+      "monitors": [
+        {"name": "Ente", "type": "keyword", "url": "https://ente.agathla.com/ping", "keyword": "pong", "expiryNotification": true, "domainExpiryNotification": true},
+        {"name": "Ente storage", "url": "https://minio.agathla.com/minio/health/live"},
+        {"name": "Ente database", "type": "port", "hostname": "postgres.ente.svc.cluster.local", "port": 5432},
+        {"name": "Private Ente", "type": "keyword", "url": "https://prvtente.agathla.com/ping", "keyword": "pong"},
+        {"name": "Private Ente storage", "url": "https://prvtenteminio.agathla.com/minio/health/live"},
+        {"name": "Private Ente database", "type": "port", "hostname": "postgres.prvtente.svc.cluster.local", "port": 5432},
+        {"name": "Ente admin", "type": "keyword", "url": "http://ente-admin.ente-admin.svc.cluster.local:8000/healthz", "keyword": "ok"}
+      ]
+    },
+    {
+      "name": "Media",
+      "monitors": [
+        {"name": "Plex", "url": "https://plex.agathla.com/identity"},
+        {"name": "Seerr", "url": "https://jellyseerr.agathla.com/api/v1/status"},
+        {"name": "Tautulli", "url": "https://tautulli.agathla.com/status"},
+        {"name": "qBittorrent", "url": "http://vpn-stack.media.svc.cluster.local:8080/"},
+        {"name": "NZBGet", "url": "http://vpn-stack.media.svc.cluster.local:6789/"},
+        {"name": "Prowlarr", "url": "http://vpn-stack.media.svc.cluster.local:9696/ping"},
+        {"name": "Radarr", "url": "http://vpn-stack.media.svc.cluster.local:7878/ping"},
+        {"name": "Sonarr", "url": "http://vpn-stack.media.svc.cluster.local:8989/ping"},
+        {"name": "Lidarr", "url": "http://vpn-stack.media.svc.cluster.local:8686/ping"},
+        {"name": "Bazarr", "url": "http://vpn-stack.media.svc.cluster.local:6767/"}
+      ]
+    },
+    {
+      "name": "Platform",
+      "monitors": [
+        {"name": "Authelia", "url": "https://auth.agathla.com/api/health"},
+        {"name": "Forgejo", "url": "https://git.agathla.com/api/healthz"},
+        {"name": "Forgejo database", "type": "port", "hostname": "forgejo-db-rw.forgejo.svc.cluster.local", "port": 5432},
+        {"name": "Argo CD", "url": "https://argocd.agathla.com/healthz"},
+        {"name": "Vault (unsealed)", "url": "https://vault.agathla.com/v1/sys/health"}
+      ]
+    },
+    {
+      "name": "Infrastructure",
+      "monitors": [
+        {"name": "DNS (OPNsense)", "type": "dns", "hostname": "ente.agathla.com", "dns_resolve_server": "10.0.20.1", "port": 53, "dns_resolve_type": "A"},
+        {"name": "NAS (NFS)", "type": "port", "hostname": "10.0.25.10", "port": 2049},
+        {"name": "Proxmox host 1", "type": "port", "hostname": "10.0.10.11", "port": 8006},
+        {"name": "Proxmox host 2", "type": "port", "hostname": "10.0.10.12", "port": 8006},
+        {"name": "Proxmox host 3", "type": "port", "hostname": "10.0.10.13", "port": 8006}
+      ]
+    }
+  ]
+}

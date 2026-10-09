@@ -5,3 +5,9 @@ resources:
   - uptime-kuma.yaml
   - ingress.yaml
   - heartbeat.yaml
+  - kuma-config.yaml
+configMapGenerator:
+  - name: kuma-config
+    files:
+      - kuma-config/configure.js
+      - kuma-config/monitors.json

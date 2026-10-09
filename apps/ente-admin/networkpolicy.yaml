@@ -1,5 +1,6 @@
 # Only Traefik (which always asks Authelia first) may reach the dashboard; otherwise any
-# pod in the cluster could call ente-admin:8000 and skip the login. Kubelet probes come
+# pod in the cluster could call ente-admin:8000 and skip the login. Uptime Kuma may too,
+# for its health check (without Authelia's headers it gets no data). Kubelet probes come
 # from the nodes.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -15,6 +16,13 @@ spec:
             matchLabels: {kubernetes.io/metadata.name: kube-system}
           podSelector:
             matchLabels: {app.kubernetes.io/name: traefik}
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: uptime}
+          podSelector:
+            matchLabels: {app: uptime-kuma}
+      ports:
+        - {port: 8000}
     - from:
         - ipBlock: {cidr: 10.0.20.11/32}
         - ipBlock: {cidr: 10.0.20.12/32}
