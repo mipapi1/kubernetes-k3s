@@ -46,10 +46,12 @@ session:
   cookies:
     - domain: {{ authelia_cookie_domain }}
       authelia_url: {{ authelia_url }}
+      # Without "Remember me": signed out after 1h without use, at the latest after 12h
       expiration: 12h
       inactivity: 1h
-      # No "remember me": a login never lasts longer than the 12 hours above
-      remember_me: -1
+      # With "Remember me" ticked at login: that browser stays signed in (2FA included)
+      # for 30 days, and the inactivity limit doesn't apply
+      remember_me: 1M
 regulation:
   # 5 failed logins within 10 minutes lock the account for 15 minutes
   max_retries: 5
