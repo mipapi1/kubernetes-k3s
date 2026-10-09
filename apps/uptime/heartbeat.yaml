@@ -46,7 +46,9 @@ spec:
                 - -c
                 - |
                   url=$(cat /secret/ping-url)
-                  if curl -fsS -m 10 -o /dev/null http://uptime-kuma:3001/; then
+                  # Retries: the network policy only lets a new pod in a few seconds
+                  # after it starts (kube-router adds its IP), so the first tries are refused.
+                  if curl -fsS -m 10 --retry 6 --retry-delay 3 --retry-connrefused -o /dev/null http://uptime-kuma:3001/; then
                     curl -fsS -m 10 --retry 3 -o /dev/null "$url" && echo "ok"
                   else
                     curl -fsS -m 10 --retry 3 -o /dev/null --data-raw "Uptime Kuma is not responding" "$url/fail" && echo "reported: kuma down"
