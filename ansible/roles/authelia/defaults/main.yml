@@ -24,3 +24,4 @@ authelia_apps:
   - sonarr
   - lidarr
   - bazarr
+  - uptime

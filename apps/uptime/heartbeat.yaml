@@ -1,0 +1,65 @@
+# Dead man's switch: every 2 minutes, report to healthchecks.io whether Uptime Kuma is up.
+# If the cluster, this node pool or the house internet is down, the reports stop and
+# healthchecks.io alerts (it's outside the homelab); if Kuma itself is down, the report
+# says "fail". The ping URL (contains the check's secret id) comes from Vault.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: heartbeat
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault}
+  target:
+    name: heartbeat
+  data:
+    - {secretKey: ping-url, remoteRef: {key: k8s/uptime/healthchecks, property: ping-url}}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: heartbeat
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 90
+      template:
+        metadata:
+          labels: {app: heartbeat}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 100
+            runAsGroup: 101
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: ping
+              image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
+              command:
+                - sh
+                - -c
+                - |
+                  url=$(cat /secret/ping-url)
+                  if curl -fsS -m 10 -o /dev/null http://uptime-kuma:3001/; then
+                    curl -fsS -m 10 --retry 3 -o /dev/null "$url" && echo "ok"
+                  else
+                    curl -fsS -m 10 --retry 3 -o /dev/null --data-raw "Uptime Kuma is not responding" "$url/fail" && echo "reported: kuma down"
+                  fi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: [ALL]}
+              resources:
+                requests: {cpu: 5m, memory: 8Mi}
+                limits: {memory: 32Mi}
+              volumeMounts:
+                - {name: secret, mountPath: /secret, readOnly: true}
+          volumes:
+            - name: secret
+              secret: {secretName: heartbeat}

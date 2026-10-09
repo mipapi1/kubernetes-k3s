@@ -1,0 +1,7 @@
+# Monitoring and alerts: Uptime Kuma (+ healthchecks.io heartbeat). See README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - uptime-kuma.yaml
+  - ingress.yaml
+  - heartbeat.yaml

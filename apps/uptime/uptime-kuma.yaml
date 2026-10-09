@@ -1,0 +1,73 @@
+# Uptime Kuma: checks the homelab's services every minute and alerts by push (ntfy) and
+# email. Monitors and notifications live in its own database (on the volume below);
+# login is Authelia (ingress.yaml), Kuma's own login is turned off in its settings.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+spec:
+  replicas: 1
+  # SQLite on a ReadWriteOnce volume
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: uptime-kuma}
+  template:
+    metadata:
+      labels: {app: uptime-kuma}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: uptime-kuma
+          # slim: without the bundled browser and MariaDB (uses SQLite)
+          image: louislam/uptime-kuma:2.5.5-slim@sha256:9c56a772a7df53f444a404c579e87a27bd0c201375d00d6745a75bf8138f4342
+          env:
+            - {name: TZ, value: America/New_York}
+            - {name: UPTIME_KUMA_PORT, value: "3001"}
+          ports:
+            - {name: http, containerPort: 3001}
+          startupProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 20m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /app/data}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: uptime-kuma-data}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uptime-kuma-data
+  annotations:
+    # Never let Argo CD delete the data because the claim disappeared from git
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources: {requests: {storage: 2Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: uptime-kuma
+spec:
+  selector: {app: uptime-kuma}
+  ports:
+    - {name: http, port: 3001, targetPort: http}
