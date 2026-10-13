@@ -3,7 +3,8 @@
     "interval": 60,
     "retryInterval": 60,
     "maxretries": 2,
-    "timeout": 48
+    "timeout": 48,
+    "resendInterval": 60
   },
   "groups": [
     {

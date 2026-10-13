@@ -4,8 +4,9 @@ Monitoring and alerts. https://uptime.agathla.com (DNS alias of the k3s entry), 
 Authelia (group `admins` or `app-uptime`).
 
 - **Uptime Kuma** checks every service once a minute and alerts by push (ntfy.sh topic)
-  and email (Proton SMTP, `noreply@agathla.com`) when one stays down, and again when it's
-  back. Kuma's own login is turned off (Settings → Security), Authelia does it.
+  and email (Proton SMTP, `noreply@agathla.com`) when one stays down, again every hour
+  while it's still down (in case the first alert couldn't be sent, e.g. the internet was
+  down too), and when it's back. Kuma's own login is turned off (Settings → Security), Authelia does it.
 - **Monitors and alert channels are in git**: `kuma-config/monitors.json`. After every Argo
   CD sync of this app, the `kuma-config` job (`kuma-config.yaml`) applies it: missing
   monitors are created, existing ones (same name) are overwritten with what's in git.
