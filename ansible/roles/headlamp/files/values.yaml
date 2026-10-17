@@ -1,0 +1,48 @@
+# Helm values for the headlamp chart (version pinned in ../defaults/main.yml).
+# Only what differs from the chart defaults; full reference:
+#   helm show values headlamp/headlamp --version <headlamp_chart_version>
+
+image:
+  # Keep in step with the chart version
+  tag: v0.45.0@sha256:db3f0e0fc58d358d41daa3fe7fc852437552c7ee873c3645470f7b86a8e0db49
+
+config:
+  # Shown as the cluster name in the UI
+  inClusterContextName: homelab
+  # Install/upgrade/roll back Helm releases from the UI
+  enableHelm: true
+  # No OIDC (yet): sign-in is a token, see admin.yaml
+  oidc:
+    secret:
+      create: false
+
+# Headlamp's own service account gets no rights: every request runs with the token the
+# user signed in with (the chart default would make Headlamp itself cluster-admin).
+clusterRoleBinding:
+  create: false
+
+# https://headlamp.agathla.com -> HAProxy (TLS) -> Traefik -> Authelia login (2FA) ->
+# Headlamp token sign-in. Group `admins` gets in (Authelia's *.agathla.com rule).
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: headlamp-authelia@kubernetescrd
+  hosts:
+    - host: headlamp.agathla.com
+      paths:
+        - {path: /, type: Prefix}
+
+podSecurityContext:
+  seccompProfile: {type: RuntimeDefault}
+securityContext:
+  runAsNonRoot: true
+  privileged: false
+  runAsUser: 100
+  runAsGroup: 101
+  allowPrivilegeEscalation: false
+  capabilities: {drop: [ALL]}
+
+resources:
+  requests: {cpu: 10m, memory: 48Mi}
+  limits: {memory: 256Mi}

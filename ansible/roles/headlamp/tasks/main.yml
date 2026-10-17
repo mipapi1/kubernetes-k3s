@@ -1,0 +1,28 @@
+---
+# Runs on the control node against the cluster's kubeconfig context.
+# Installed by Ansible (platform layer), not Argo CD: the tool for fixing the cluster
+# must not depend on Argo CD working.
+- name: Install Headlamp (cluster UI)
+  kubernetes.core.helm:
+    name: headlamp
+    chart_ref: headlamp
+    chart_repo_url: https://kubernetes-sigs.github.io/headlamp/
+    chart_version: "{{ headlamp_chart_version }}"
+    release_namespace: headlamp
+    create_namespace: true
+    kube_context: "{{ cluster_context }}"
+    wait: true
+    values_files:
+      - "{{ role_path }}/files/values.yaml"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Create the admin sign-in, login and network policy
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    src: "{{ role_path }}/files/admin.yaml"
+  delegate_to: localhost
+  become: false
+  run_once: true

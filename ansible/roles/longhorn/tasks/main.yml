@@ -66,6 +66,7 @@
         # Per data engine since Longhorn 1.8
         defaultReplicaCount: '{"v1":"{{ longhorn_replica_count }}","v2":"{{ longhorn_replica_count }}"}'
         concurrentReplicaRebuildPerNodeLimit: "{{ longhorn_concurrent_rebuilds_per_node }}"
+        storageOverProvisioningPercentage: "{{ longhorn_storage_over_provisioning }}"
         # When a node dies, its pods stay "Terminating" and keep their volumes attached
         # to the dead node, so nothing can restart elsewhere. This deletes them so the
         # apps come back on another node within minutes, without manual force-deletes.

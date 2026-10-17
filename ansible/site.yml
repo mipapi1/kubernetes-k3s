@@ -107,3 +107,12 @@
   roles:
     - role: monitoring
       when: install_monitoring | default(false)
+
+- name: Setup Headlamp (cluster UI)
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  tags: headlamp
+  roles:
+    - role: headlamp
+      when: install_headlamp | default(false)

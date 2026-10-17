@@ -10,16 +10,17 @@ spec:
   groups:
     - name: longhorn
       rules:
-        # robustness: 1 healthy, 2 degraded (a replica missing), 3 faulted (no healthy replica)
+        # One 0/1 series per state (healthy, degraded = a replica missing, faulted = no
+        # healthy replica, unknown = detached)
         - alert: LonghornVolumeDegraded
-          expr: longhorn_volume_robustness == 2
+          expr: longhorn_volume_robustness{state="degraded"} == 1
           for: 15m
           labels: {severity: warning}
           annotations:
             summary: "Longhorn volume {{ $labels.volume }} ({{ $labels.pvc_namespace }}/{{ $labels.pvc }}) is degraded"
             description: "A replica is missing and hasn't been rebuilt for 15 minutes. Check the Longhorn UI."
         - alert: LonghornVolumeFaulted
-          expr: longhorn_volume_robustness == 3
+          expr: longhorn_volume_robustness{state="faulted"} == 1
           for: 2m
           labels: {severity: critical}
           annotations:

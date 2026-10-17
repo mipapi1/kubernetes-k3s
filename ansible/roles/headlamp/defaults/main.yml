@@ -1,0 +1,4 @@
+---
+# https://github.com/kubernetes-sigs/headlamp/releases
+# Chart settings live in ../files/values.yaml (the image is pinned there)
+headlamp_chart_version: "0.45.0"

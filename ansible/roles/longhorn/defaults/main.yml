@@ -7,6 +7,11 @@ longhorn_replica_count: 2
 # disk shared with etcd; parallel rebuilds after a node outage starved etcd and made
 # k3s restart (2026-10-06). Slower recovery, but the control plane stays healthy.
 longhorn_concurrent_rebuilds_per_node: 1
+# Longhorn reserves each volume's full size on a disk, though volumes are mostly empty
+# (disks ~30% used on 2026-10-17, while the reservations had no room left for a new
+# replica). 150% lets reservations exceed the disk; real use stays guarded by Longhorn's
+# 25% minimum free space and the LonghornNodeStorageLow alert (monitoring role).
+longhorn_storage_over_provisioning: 150
 # Backups go to the NAS (Longhorn creates a backupstore/ folder in the export).
 # The Ugreen NAS only offers NFSv3, but Longhorn defaults to NFSv4, so force v3.
 # `nolock` because Longhorn's containers don't run rpc.statd (NFSv3 locking);

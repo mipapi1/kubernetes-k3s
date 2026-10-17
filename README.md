@@ -7,11 +7,11 @@ kubernetes-k3s/
 ├── apps/                  GitOps: each folder = one app, deployed by Argo CD
 └── ansible/
     ├── requirements.yml   pinned collections, incl. upstream k3s-io/k3s-ansible (k3s.orchestration)
-    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets, CloudNativePG, Forgejo, Authelia, monitoring
+    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets, CloudNativePG, Forgejo, Authelia, monitoring, Headlamp
     ├── inventory.yml      cluster hosts and k3s settings
     ├── group_vars/        secrets looked up from Vault
     ├── manifests/         applied by k3s itself (Traefik config, CoreDNS override for *.agathla.com)
-    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, authelia, monitoring, cert_manager)
+    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, authelia, monitoring, headlamp, cert_manager)
     └── deploy.sh
 ```
 
@@ -108,7 +108,7 @@ vault write auth/kubernetes/role/external-secrets \
 ```
 
 Re-deploy a single add-on without re-running the k3s install (which restarts every server):
-`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`, `monitoring`).
+`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`, `monitoring`, `headlamp`).
 
 ## Forgejo (git server)
 
@@ -175,7 +175,9 @@ Authelia passes along (`auth.proxy`), so a NetworkPolicy lets only Traefik reach
   storage, via `pve-exporter` with the read-only Homepage token). OPNsense once its
   `os-node_exporter` plugin is installed and `monitoring_opnsense_node_exporter` is on.
   k3s keeps the scheduler, controller-manager and etcd metrics on 127.0.0.1, so those aren't.
-- **Dashboards:** the chart's set (Kubernetes views, Node Exporter Full, VictoriaMetrics), plus
+- **Dashboards:** start with **Homelab overview** (Grafana's home page; also linked from
+  Homepage, whose Grafana tile shows its headline numbers live): status, nodes, etcd latency,
+  Proxmox, apps, storage. Then the chart's set (Kubernetes views, Node Exporter Full, VictoriaMetrics), plus
   Proxmox, Longhorn and Traefik from `roles/monitoring/files/dashboards/`. Dashboards made in
   the UI are kept (Grafana has a small volume).
 - **Alerts:** the chart's Kubernetes/node rules plus `files/rules.yaml` (Longhorn volumes and
@@ -185,6 +187,22 @@ Authelia passes along (`auth.proxy`), so a NetworkPolicy lets only Traefik reach
   Uptime Kuma stays the up/down check for each service.
 - **Secrets:** none of its own; it reads `secret/k8s/uptime/ntfy`, `secret/k8s/uptime/smtp`
   and `secret/k8s/homepage/proxmox` (see `roles/monitoring/files/external-secrets.yaml`).
+
+## Headlamp (cluster UI)
+
+https://headlamp.agathla.com, installed by the `headlamp` role (`./deploy.sh --tags headlamp`),
+behind Authelia (group `admins`, 2FA). Full admin from the browser or phone: browse and edit
+any resource (YAML), scale/restart, logs, pod shells, Helm releases.
+
+Headlamp itself has no rights; it acts with the token you sign in with. The cluster-admin
+token belongs to the service account `headlamp-admin` (`roles/headlamp/files/admin.yaml`).
+Copy it to the clipboard and keep it in the password manager (it isn't stored anywhere else):
+
+```bash
+kubectl -n headlamp get secret headlamp-admin-token -o jsonpath='{.data.token}' | base64 -d | pbcopy
+```
+
+Rotate it by deleting that Secret and re-running the role; the old token stops working.
 
 ## Apps (GitOps with Argo CD)
 

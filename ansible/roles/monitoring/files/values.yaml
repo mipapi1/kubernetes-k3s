@@ -100,6 +100,9 @@ grafana:
       check_for_plugin_updates: false
     news:
       news_feed_enabled: false
+    # Opening Grafana shows the overview (files/dashboards/homelab-overview.json)
+    dashboards:
+      default_home_dashboard_path: /var/lib/grafana/dashboards/default/homelab-overview.json
   # Dashboards and users made in the UI survive restarts (provisioned dashboards come
   # from ConfigMaps either way)
   persistence:

@@ -1,0 +1,65 @@
+# Cluster-admin sign-in for Headlamp: a service account with a long-lived token. The
+# token never leaves the cluster except into your password manager (README):
+#   kubectl -n headlamp get secret headlamp-admin-token -o jsonpath='{.data.token}' | base64 -d | pbcopy
+# Rotate: delete the Secret and re-run the role; Kubernetes issues a new token and the
+# old one stops working.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp-admin
+  namespace: headlamp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: headlamp-admin
+    namespace: headlamp
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headlamp-admin-token
+  namespace: headlamp
+  annotations:
+    kubernetes.io/service-account.name: headlamp-admin
+type: kubernetes.io/service-account-token
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authelia
+  namespace: headlamp
+spec:
+  forwardAuth:
+    address: http://authelia.authelia.svc.cluster.local:9091/api/authz/forward-auth
+    trustForwardHeader: true
+    authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
+---
+# Only Traefik may reach Headlamp (so Authelia is never skipped); kubelet probes come
+# from the nodes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: headlamp-ingress
+  namespace: headlamp
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: headlamp}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: traefik}
+    - from:
+        - ipBlock: {cidr: 10.0.20.11/32}
+        - ipBlock: {cidr: 10.0.20.12/32}
+        - ipBlock: {cidr: 10.0.20.13/32}

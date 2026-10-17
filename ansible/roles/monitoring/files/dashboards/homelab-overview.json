@@ -1,0 +1,1594 @@
+{
+ "title": "Homelab overview",
+ "uid": "homelab-overview",
+ "id": null,
+ "editable": true,
+ "tags": [
+  "homelab"
+ ],
+ "timezone": "browser",
+ "refresh": "1m",
+ "schemaVersion": 39,
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "type": "row",
+   "title": "Status",
+   "id": 1,
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 0
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "Alerts firing",
+   "id": 2,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Warnings and criticals now firing (the ones sent to ntfy/email). Details: Alerting -> Alert rules.",
+   "gridPos": {
+    "h": 4,
+    "w": 4,
+    "x": 0,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "count(ALERTS{alertstate=\"firing\",severity=~\"warning|critical\"}) or vector(0)",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "k3s nodes ready",
+   "id": 3,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 4,
+    "w": 3,
+    "x": 4,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 2
+       },
+       {
+        "color": "green",
+        "value": 3
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Proxmox hosts up",
+   "id": 4,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 4,
+    "w": 3,
+    "x": 7,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum(pve_up{id=~\"node/.*\"})",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 2
+       },
+       {
+        "color": "green",
+        "value": 3
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Pods not running",
+   "id": 5,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Pending, Failed or Unknown pods (finished jobs don't count)",
+   "gridPos": {
+    "h": 4,
+    "w": 3,
+    "x": 10,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum(kube_pod_status_phase{phase=~\"Pending|Failed|Unknown\"}) or vector(0)",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Restarts (24h)",
+   "id": 6,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Container restarts in the last 24 hours, all namespaces. Which ones: Apps -> Restarts.",
+   "gridPos": {
+    "h": 4,
+    "w": 3,
+    "x": 13,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum(increase(kube_pod_container_status_restarts_total[24h])) or vector(0)",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       },
+       {
+        "color": "red",
+        "value": 10
+       }
+      ]
+     },
+     "decimals": 0
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Volumes unhealthy",
+   "id": 7,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Longhorn volumes degraded (a replica missing) or faulted",
+   "gridPos": {
+    "h": 4,
+    "w": 3,
+    "x": 16,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum(longhorn_volume_robustness{state=~\"degraded|faulted\"}) or vector(0)",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Cluster CPU",
+   "id": 8,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 4,
+    "w": 2,
+    "x": 19,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[5m]))",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.7
+       },
+       {
+        "color": "red",
+        "value": 0.9
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Cluster memory",
+   "id": 9,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 4,
+    "w": 3,
+    "x": 21,
+    "y": 1
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "1 - sum(node_memory_MemAvailable_bytes{job=\"node-exporter\"}) / sum(node_memory_MemTotal_bytes{job=\"node-exporter\"})",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.75
+       },
+       {
+        "color": "red",
+        "value": 0.9
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "row",
+   "title": "k3s nodes",
+   "id": 10,
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 5
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "CPU",
+   "id": 11,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 6
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "1 - avg by (nodename) (rate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[5m]) * on(instance) group_left(nodename) node_uname_info)",
+     "legendFormat": "{{nodename}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Memory used",
+   "id": 12,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 6
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "1 - (node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"}) * on(instance) group_left(nodename) node_uname_info",
+     "legendFormat": "{{nodename}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "System disk busy",
+   "id": 13,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Share of time the node's disk (vda: etcd, Longhorn, images) is busy. Near 100% = etcd gets slow and k3s can restart.",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 6
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "rate(node_disk_io_time_seconds_total{device=\"vda\",job=\"node-exporter\"}[5m]) * on(instance) group_left(nodename) node_uname_info",
+     "legendFormat": "{{nodename}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "etcd latency (as the API server sees it, p99)",
+   "id": 14,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Slow etcd = slow or failing cluster. Under 0.1 s is healthy; seconds means disk contention.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 14
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "histogram_quantile(0.99, sum by (le, instance) (rate(etcd_request_duration_seconds_bucket{job=\"apiserver\"}[5m])))",
+     "legendFormat": "{{instance}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "API server errors",
+   "id": 15,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 14
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum(rate(apiserver_request_total{job=\"apiserver\",code=~\"5..\"}[5m])) / sum(rate(apiserver_request_total{job=\"apiserver\"}[5m]))",
+     "legendFormat": "5xx share",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "row",
+   "title": "Proxmox",
+   "id": 16,
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 22
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "Host CPU",
+   "id": 17,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 23
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "pve_cpu_usage_ratio{id=~\"node/.*\"}",
+     "legendFormat": "{{id}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Host memory",
+   "id": 18,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 23
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "pve_memory_usage_bytes{id=~\"node/.*\"} / pve_memory_size_bytes{id=~\"node/.*\"}",
+     "legendFormat": "{{id}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Storage used",
+   "id": 19,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Proxmox storages, incl. the NAS share (proxmox-nas)",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 23
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "pve_disk_usage_bytes{id=~\"storage/.*\"} / pve_disk_size_bytes{id=~\"storage/.*\"} > 0",
+     "legendFormat": "{{id}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "minVizHeight": 10,
+    "maxVizHeight": 24,
+    "valueMode": "color",
+    "namePlacement": "left",
+    "sizing": "manual"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.7
+       },
+       {
+        "color": "red",
+        "value": 0.85
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "VMs",
+   "id": 20,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 3,
+    "w": 24,
+    "x": 0,
+    "y": 31
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "pve_up{id=~\"qemu/.*\"} * on(id) group_left(name) pve_guest_info{name!~\".*template.*\"}",
+     "legendFormat": "{{name}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value_and_name",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "stopped",
+         "color": "red"
+        },
+        "1": {
+         "text": "running",
+         "color": "green"
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "row",
+   "title": "Apps",
+   "id": 21,
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 34
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "CPU by namespace",
+   "id": 22,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "CPU cores used",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 35
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{job=\"kubelet\",container!=\"\"}[5m]))",
+     "legendFormat": "{{namespace}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal"
+      }
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Memory by namespace",
+   "id": 23,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 35
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum by (namespace) (container_memory_working_set_bytes{job=\"kubelet\",container!=\"\"})",
+     "legendFormat": "{{namespace}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal"
+      }
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Requests per app (Traefik)",
+   "id": 24,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Everything that comes in through HAProxy -> Traefik, per backend",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 43
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum by (service) (rate(traefik_service_requests_total[5m]))",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Errors per app (5xx)",
+   "id": 25,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 6,
+    "x": 12,
+    "y": 43
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum by (service) (rate(traefik_service_requests_total{code=~\"5..\"}[5m])) > 0",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Restarts (24h)",
+   "id": 26,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 8,
+    "w": 6,
+    "x": 18,
+    "y": 43
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total[24h])) > 0.5",
+     "legendFormat": "{{namespace}}/{{pod}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "minVizHeight": 10,
+    "maxVizHeight": 24,
+    "valueMode": "color",
+    "namePlacement": "left",
+    "sizing": "manual"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "min": 0,
+     "max": null,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "orange",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 10
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "row",
+   "title": "Storage",
+   "id": 27,
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 51
+   },
+   "panels": []
+  },
+  {
+   "type": "bargauge",
+   "title": "Volumes used (PVC)",
+   "id": 28,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 10,
+    "w": 12,
+    "x": 0,
+    "y": 52
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "kubelet_volume_stats_used_bytes{job=\"kubelet\"} / kubelet_volume_stats_capacity_bytes{job=\"kubelet\"}",
+     "legendFormat": "{{namespace}}/{{persistentvolumeclaim}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "minVizHeight": 10,
+    "maxVizHeight": 24,
+    "valueMode": "color",
+    "namePlacement": "left",
+    "sizing": "manual"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.7
+       },
+       {
+        "color": "red",
+        "value": 0.85
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Longhorn disk per node",
+   "id": 29,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "",
+   "gridPos": {
+    "h": 5,
+    "w": 12,
+    "x": 12,
+    "y": 52
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "longhorn_node_storage_usage_bytes / longhorn_node_storage_capacity_bytes",
+     "legendFormat": "{{node}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "minVizHeight": 10,
+    "maxVizHeight": 24,
+    "valueMode": "color",
+    "namePlacement": "left",
+    "sizing": "manual"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.7
+       },
+       {
+        "color": "red",
+        "value": 0.85
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Longhorn volumes healthy",
+   "id": 30,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "VictoriaMetrics"
+   },
+   "description": "Healthy, attached volumes",
+   "gridPos": {
+    "h": 5,
+    "w": 12,
+    "x": 12,
+    "y": 57
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "VictoriaMetrics"
+     },
+     "expr": "count(longhorn_volume_robustness{state=\"healthy\"} == 1)",
+     "legendFormat": "",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "orientation": "auto"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "annotations": {
+  "list": []
+ },
+ "links": [],
+ "graphTooltip": 1
+}

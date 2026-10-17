@@ -66,11 +66,34 @@
         podSelector: app=uptime-kuma
     - Grafana:
         icon: grafana.png
-        href: https://grafana.agathla.com
+        href: https://grafana.agathla.com/d/homelab-overview
         description: Metrics and alerts
         # No siteMonitor: only Traefik may reach Grafana (it trusts the login header)
         namespace: monitoring
         podSelector: app.kubernetes.io/name=grafana
+        # Live numbers straight from VictoriaMetrics (same queries as the overview dashboard)
+        widget:
+          type: prometheusmetric
+          url: http://vmsingle-vm.monitoring.svc:8428
+          refreshInterval: 30000
+          metrics:
+            - label: Alerts
+              query: count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)
+            - label: CPU
+              query: 1 - avg(rate(node_cpu_seconds_total{mode="idle",job="node-exporter"}[5m]))
+              format: {type: percent, scale: 100, options: {maximumFractionDigits: 0}}
+            - label: Memory
+              query: 1 - sum(node_memory_MemAvailable_bytes{job="node-exporter"}) / sum(node_memory_MemTotal_bytes{job="node-exporter"})
+              format: {type: percent, scale: 100, options: {maximumFractionDigits: 0}}
+            - label: Restarts 24h
+              query: sum(increase(kube_pod_container_status_restarts_total[24h])) or vector(0)
+              format: {type: number, options: {maximumFractionDigits: 0}}
+    - Headlamp:
+        icon: headlamp.png
+        href: https://headlamp.agathla.com
+        description: Cluster admin
+        namespace: headlamp
+        podSelector: app.kubernetes.io/name=headlamp
 
 - Photos:
     - Ente:
