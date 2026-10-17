@@ -99,6 +99,17 @@
     - role: authelia
       when: install_authelia | default(false)
 
+# Restarts k3s one server at a time when its flag is first added (see the role)
+- name: Setup sign-in to Kubernetes with Authelia (OIDC)
+  hosts: server
+  serial: 1
+  gather_facts: true
+  become: true
+  tags: k3s_oidc
+  roles:
+    - role: k3s_oidc
+      when: install_k3s_oidc | default(false)
+
 - name: Setup monitoring (VictoriaMetrics, Grafana, alerts)
   hosts: server[0]
   gather_facts: false

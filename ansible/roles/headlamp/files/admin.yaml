@@ -1,5 +1,6 @@
-# Cluster-admin sign-in for Headlamp: a service account with a long-lived token. The
-# token never leaves the cluster except into your password manager (README):
+# Break-glass cluster-admin sign-in for Headlamp (normal sign-in is Authelia, oidc.yaml):
+# a service account with a long-lived token, for when Authelia is down. The token never
+# leaves the cluster except into your password manager (README):
 #   kubectl -n headlamp get secret headlamp-admin-token -o jsonpath='{.data.token}' | base64 -d | pbcopy
 # Rotate: delete the Secret and re-run the role; Kubernetes issues a new token and the
 # old one stops working.

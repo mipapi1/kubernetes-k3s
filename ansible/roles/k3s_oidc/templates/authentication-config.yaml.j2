@@ -1,0 +1,20 @@
+# Managed by Ansible (k3s_oidc role). The API server re-reads this file when it changes;
+# only adding the --authentication-config flag needed a k3s restart.
+# https://kubernetes.io/docs/reference/access-authn-authz/authentication/#using-authentication-configuration
+apiVersion: apiserver.config.k8s.io/v1
+kind: AuthenticationConfiguration
+jwt:
+  - issuer:
+      url: {{ k3s_oidc_issuer }}
+      audiences: {{ k3s_oidc_audiences | to_json }}
+      audienceMatchPolicy: MatchAny
+    claimMappings:
+      username:
+        claim: preferred_username
+        prefix: "{{ k3s_oidc_prefix }}"
+      groups:
+        claim: groups
+        prefix: "{{ k3s_oidc_prefix }}"
+    userValidationRules:
+      - expression: "!user.username.startsWith('system:')"
+        message: "username must not use the system: prefix"

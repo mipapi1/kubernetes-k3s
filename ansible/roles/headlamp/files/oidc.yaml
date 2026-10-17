@@ -1,0 +1,28 @@
+# "Sign in with Authelia": Headlamp's OpenID Connect settings, read by the chart as
+# environment (config.oidc.externalSecret in values.yaml). Only the client secret is
+# secret: secret/k8s/headlamp/oidc client-secret, created by
+# roles/authelia/files/oidc-secrets.sh together with Authelia's side.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: headlamp-oidc
+  namespace: headlamp
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault}
+  target:
+    name: headlamp-oidc
+    template:
+      engineVersion: v2
+      data:
+        OIDC_CLIENT_ID: headlamp
+        OIDC_CLIENT_SECRET: '{{ .clientSecret }}'
+        OIDC_ISSUER_URL: https://auth.agathla.com
+        # Headlamp adds openid itself; groups and preferred_username land in the ID token
+        # (Authelia claims policy "kubernetes"), which the API server reads
+        OIDC_SCOPES: profile,email,groups,offline_access
+        OIDC_CALLBACK_URL: https://headlamp.agathla.com/oidc-callback
+        OIDC_USE_PKCE: "true"
+  data:
+    - secretKey: clientSecret
+      remoteRef: {key: k8s/headlamp/oidc, property: client-secret}

@@ -9,12 +9,31 @@ image:
 config:
   # Shown as the cluster name in the UI
   inClusterContextName: homelab
+  # The pasted token is kept in an HttpOnly cookie for this long (default 24h): one paste
+  # per browser per month, like Authelia's "Remember me"; Authelia's 2FA stays in front.
+  # Passed as an extra flag: the chart prints a large sessionTTL as 2.592e+06 (rejected by
+  # Headlamp), and its schema refuses a string. null drops the chart's own flag.
+  sessionTTL: null
+  extraArgs:
+    - -session-ttl=2592000
   # Install/upgrade/roll back Helm releases from the UI
   enableHelm: true
-  # No OIDC (yet): sign-in is a token, see admin.yaml
+  # Sign in with Authelia (OpenID Connect): settings from the headlamp-oidc Secret
+  # (oidc.yaml). The API server trusts Authelia's ID tokens (k3s_oidc role), so Headlamp
+  # acts as you, with your RBAC (group admins = cluster-admin).
   oidc:
     secret:
       create: false
+    externalSecret:
+      enabled: true
+      name: headlamp-oidc
+      hasScopes: true
+    # Not secret; the chart only adds these flags when they're set here (values come
+    # from the Secret)
+    callbackURL: https://headlamp.agathla.com/oidc-callback
+    usePKCE: true
+    # Keep the tokens in an HttpOnly cookie, not in the browser's storage
+    useCookie: true
 
 # Headlamp's own service account gets no rights: every request runs with the token the
 # user signed in with (the chart default would make Headlamp itself cluster-admin).

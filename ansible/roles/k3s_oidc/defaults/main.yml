@@ -1,0 +1,14 @@
+---
+# The API server accepts Authelia's ID tokens: people sign in to Kubernetes (Headlamp,
+# kubectl) with their Authelia account. Authelia's side: identity_providers in the
+# authelia role's template.
+k3s_oidc_issuer: https://auth.agathla.com
+# Authelia's OIDC clients whose tokens are accepted
+k3s_oidc_audiences: [headlamp, kubectl]
+# Users and groups appear in Kubernetes as authelia:<name> (no clash with built-in names)
+k3s_oidc_prefix: "authelia:"
+# Authelia group that gets cluster-admin
+k3s_oidc_admin_group: admins
+# The nodes resolve via public DNS, which doesn't know auth.agathla.com; the API server
+# reaches Authelia through HAProxy, pinned in /etc/hosts
+k3s_oidc_issuer_ip: 10.0.20.10

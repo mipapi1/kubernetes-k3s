@@ -1,0 +1,86 @@
+---
+# Runs on each server, one at a time (serial: 1 in site.yml): a restart briefly takes that
+# node's API server and etcd member away, so the next node only starts once this one is
+# back and healthy. Without the restart (nothing changed) it's a no-op.
+- name: Pin auth.agathla.com to HAProxy (the API server fetches Authelia's signing keys)
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '\s{{ k3s_oidc_issuer | urlsplit("hostname") | regex_escape }}$'
+    line: "{{ k3s_oidc_issuer_ip }} {{ k3s_oidc_issuer | urlsplit('hostname') }}"
+
+- name: Write the authentication config (reloaded by the API server on change)
+  ansible.builtin.template:
+    src: authentication-config.yaml.j2
+    dest: /etc/rancher/k3s/authentication-config.yaml
+    mode: "0600"
+
+- name: Create the k3s config drop-in directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/config.yaml.d
+    state: directory
+    mode: "0755"
+
+# A drop-in next to config.yaml (which the upstream k3s role owns); "+" appends to any
+# kube-apiserver-arg list there instead of replacing it
+- name: Point the API server at the authentication config
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml.d/50-oidc.yaml
+    mode: "0600"
+    content: |
+      # Managed by Ansible (k3s_oidc role)
+      kube-apiserver-arg+:
+        - authentication-config=/etc/rancher/k3s/authentication-config.yaml
+  register: k3s_oidc_dropin
+
+- name: Restart k3s on this node and wait until it is healthy again
+  when: k3s_oidc_dropin.changed
+  block:
+    - name: Restart k3s
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
+
+    - name: Wait for this node's API server to be ready (includes its etcd)
+      ansible.builtin.command: >-
+        kubectl --context {{ cluster_context }} --server https://{{ inventory_hostname }}:6443
+        get --raw /readyz
+      delegate_to: localhost
+      become: false
+      register: k3s_oidc_readyz
+      until: k3s_oidc_readyz.rc == 0 and k3s_oidc_readyz.stdout == "ok"
+      retries: 60
+      delay: 5
+      changed_when: false
+
+    - name: Wait for the node to be Ready
+      ansible.builtin.command: >-
+        kubectl --context {{ cluster_context }} wait node/{{ ansible_facts['hostname'] }}
+        --for=condition=Ready --timeout=300s
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Give etcd a moment before the next node
+      ansible.builtin.pause:
+        seconds: 30
+
+- name: Give Authelia's group {{ k3s_oidc_admin_group }} cluster-admin
+  kubernetes.core.k8s:
+    context: "{{ cluster_context }}"
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: authelia-admins
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-admin
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: "{{ k3s_oidc_prefix }}{{ k3s_oidc_admin_group }}"
+  delegate_to: localhost
+  become: false
+  run_once: true

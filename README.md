@@ -11,7 +11,7 @@ kubernetes-k3s/
     ├── inventory.yml      cluster hosts and k3s settings
     ├── group_vars/        secrets looked up from Vault
     ├── manifests/         applied by k3s itself (Traefik config, CoreDNS override for *.agathla.com)
-    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, authelia, monitoring, headlamp, cert_manager)
+    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, authelia, k3s_oidc, monitoring, headlamp, cert_manager)
     └── deploy.sh
 ```
 
@@ -108,7 +108,7 @@ vault write auth/kubernetes/role/external-secrets \
 ```
 
 Re-deploy a single add-on without re-running the k3s install (which restarts every server):
-`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`, `monitoring`, `headlamp`).
+`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`, `k3s_oidc`, `monitoring`, `headlamp`).
 
 ## Forgejo (git server)
 
@@ -188,21 +188,48 @@ Authelia passes along (`auth.proxy`), so a NetworkPolicy lets only Traefik reach
 - **Secrets:** none of its own; it reads `secret/k8s/uptime/ntfy`, `secret/k8s/uptime/smtp`
   and `secret/k8s/homepage/proxmox` (see `roles/monitoring/files/external-secrets.yaml`).
 
-## Headlamp (cluster UI)
+## Headlamp (cluster UI) and signing in to Kubernetes with Authelia
 
 https://headlamp.agathla.com, installed by the `headlamp` role (`./deploy.sh --tags headlamp`),
 behind Authelia (group `admins`, 2FA). Full admin from the browser or phone: browse and edit
 any resource (YAML), scale/restart, logs, pod shells, Helm releases.
 
-Headlamp itself has no rights; it acts with the token you sign in with. The cluster-admin
-token belongs to the service account `headlamp-admin` (`roles/headlamp/files/admin.yaml`).
-Copy it to the clipboard and keep it in the password manager (it isn't stored anywhere else):
+**Sign-in is your Authelia account** ("Sign in" in Headlamp; one click while you're logged in
+to Authelia). Authelia is also an OpenID Connect provider (`identity_providers` in the
+authelia role's template; clients `headlamp` and `kubectl`, group `admins` only), and the
+API servers trust its ID tokens (`k3s_oidc` role: `--authentication-config`, see
+`roles/k3s_oidc/templates/`). In Kubernetes you are `authelia:<user>` with groups
+`authelia:<group>`; `authelia:admins` is bound to cluster-admin. Headlamp itself has no
+rights, so everything runs as you (and shows up as you in the audit log).
+
+- Secrets: `roles/authelia/files/oidc-secrets.sh` creates `secret/k8s/authelia/oidc`
+  (`hmac-secret`, `jwks-key`, `headlamp-secret-hash`) and `secret/k8s/headlamp/oidc`
+  (`client-secret`); `--rotate` replaces them (everyone signs in again).
+- The auth config can change without restarts (the API servers reload it). Only adding the
+  flag restarted k3s, one server at a time (`./deploy.sh --tags k3s_oidc`, `serial: 1`).
+- **Break-glass** (Authelia down): the cluster-admin token of service account
+  `headlamp-admin` (`roles/headlamp/files/admin.yaml`). Keep it in the password manager:
 
 ```bash
 kubectl -n headlamp get secret headlamp-admin-token -o jsonpath='{.data.token}' | base64 -d | pbcopy
 ```
 
-Rotate it by deleting that Secret and re-running the role; the old token stops working.
+  Rotate it by deleting that Secret and re-running the role. The admin kubeconfig from the
+  k3s install (client certificate) keeps working regardless.
+
+**kubectl with Authelia** (optional, instead of the admin kubeconfig): install
+[kubelogin](https://github.com/int128/kubelogin) (`brew install kubelogin`), then
+
+```bash
+kubectl config set-credentials authelia --exec-api-version=client.authentication.k8s.io/v1 \
+  --exec-interactive-mode=IfAvailable --exec-command=kubectl-oidc_login \
+  --exec-arg=get-token --exec-arg=--oidc-issuer-url=https://auth.agathla.com \
+  --exec-arg=--oidc-client-id=kubectl --exec-arg=--oidc-use-pkce \
+  --exec-arg=--oidc-extra-scope=profile --exec-arg=--oidc-extra-scope=email \
+  --exec-arg=--oidc-extra-scope=groups --exec-arg=--oidc-extra-scope=offline_access
+kubectl config set-context homelab-sso --cluster=homelab --user=authelia
+kubectl --context homelab-sso get nodes     # opens the browser for the Authelia login
+```
 
 ## Apps (GitOps with Argo CD)
 

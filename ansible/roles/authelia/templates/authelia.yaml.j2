@@ -69,6 +69,64 @@ notifier:
 ntp:
   # Report clock problems in the log instead of refusing to start
   disable_failure: true
+# OpenID Connect provider: single sign-on for the Kubernetes API (Headlamp, kubectl). The
+# API server trusts ID tokens signed with jwks-key (k3s_oidc role). Secrets come from
+# files via Authelia's template filter (X_AUTHELIA_CONFIG_FILTERS): the `secret` calls
+# below are Authelia's (raw for Ansible). No double braces anywhere else in this config,
+# comments included: the filter parses the whole file.
+identity_providers:
+  oidc:
+    jwks:
+      - key_id: main
+        algorithm: RS256
+        use: sig
+        key: {% raw %}{{ secret "/secrets/oidc-jwks-key" | mindent 10 "|" | msquote }}{% endraw %}
+
+    authorization_policies:
+      # Only group admins may sign in; everyone else is refused before any token exists
+      admins:
+        default_policy: deny
+        rules:
+          - policy: two_factor
+            subject: 'group:admins'
+    claims_policies:
+      # Kubernetes reads the user and groups from the ID token itself (Authelia otherwise
+      # keeps those claims for the userinfo endpoint)
+      kubernetes:
+        id_token: [preferred_username, groups, email, email_verified, name]
+    clients:
+      - client_id: headlamp
+        client_name: Headlamp
+        client_secret: {% raw %}{{ secret "/secrets/oidc-headlamp-secret-hash" | msquote }}{% endraw %}
+
+        public: false
+        authorization_policy: admins
+        # Ask once per browser, then remember for a year
+        consent_mode: pre-configured
+        pre_configured_consent_duration: 1y
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris: ['https://headlamp.agathla.com/oidc-callback']
+        scopes: [openid, offline_access, profile, email, groups]
+        grant_types: [authorization_code, refresh_token]
+        response_types: [code]
+        claims_policy: kubernetes
+        token_endpoint_auth_method: client_secret_basic
+      # kubectl on the Mac via kubelogin (kubectl oidc-login): opens the browser, no secret
+      - client_id: kubectl
+        client_name: kubectl
+        public: true
+        authorization_policy: admins
+        consent_mode: pre-configured
+        pre_configured_consent_duration: 1y
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris: ['http://localhost:8000', 'http://localhost:18000']
+        scopes: [openid, offline_access, profile, email, groups]
+        grant_types: [authorization_code, refresh_token]
+        response_types: [code]
+        claims_policy: kubernetes
+        token_endpoint_auth_method: none
 {% endset %}
 apiVersion: v1
 kind: ConfigMap
@@ -164,6 +222,9 @@ spec:
             - {name: AUTHELIA_SESSION_SECRET_FILE, value: /secrets/session-secret}
             - {name: AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE, value: /secrets/storage-encryption-key}
             - {name: AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE, value: /secrets/smtp-password}
+            - {name: AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE, value: /secrets/oidc-hmac-secret}
+            # Lets the config read the OIDC key and client hash from /secrets (`secret` function)
+            - {name: X_AUTHELIA_CONFIG_FILTERS, value: template}
           ports:
             - {name: http, containerPort: 9091}
           startupProbe:
