@@ -1,0 +1,3 @@
+# https://gethomepage.dev/configs/proxmox/
+# Not used: the Proxmox widgets in services.yaml carry their own URL and token. The
+# file must exist (Homepage exits when it can't create it in the read-only config).
