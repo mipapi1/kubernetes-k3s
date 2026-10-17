@@ -75,8 +75,9 @@ spec:
             periodSeconds: 30
             failureThreshold: 5
           resources:
-            requests: {cpu: 50m, memory: 64Mi}
-            limits: {memory: 256Mi}
+            requests: {cpu: 50m, memory: 128Mi}
+            # 256Mi got OOMKilled while loading the DNS block lists (2026-10-17)
+            limits: {memory: 512Mi}
           volumeMounts:
             - {name: tun, mountPath: /dev/net/tun}
             - {name: gluetun-data, mountPath: /gluetun}
