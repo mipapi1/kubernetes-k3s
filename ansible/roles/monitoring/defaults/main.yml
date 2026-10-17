@@ -1,0 +1,14 @@
+---
+# https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-k8s-stack
+# Chart settings live in ../files/values.yaml
+monitoring_chart_version: "0.95.0"
+
+# https://github.com/prometheus-pve/prometheus-pve-exporter/releases
+monitoring_pve_exporter_image: prompve/prometheus-pve-exporter:3.10.1@sha256:5678b230735a80816755dc8b5e0fb139a6595e1d4271ace2d22ff82983d1bdf1
+# Proxmox host the exporter asks for the whole cluster (all nodes, VMs, storage)
+monitoring_pve_target: 10.0.10.11
+
+# OPNsense's node_exporter (plugin os-node_exporter, listening on the 10.0.20.1
+# interface). Enable once the plugin is installed, or its target shows as down.
+monitoring_opnsense_node_exporter: false
+monitoring_opnsense_target: "10.0.20.1:9100"

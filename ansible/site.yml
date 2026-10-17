@@ -98,3 +98,12 @@
   roles:
     - role: authelia
       when: install_authelia | default(false)
+
+- name: Setup monitoring (VictoriaMetrics, Grafana, alerts)
+  hosts: server[0]
+  gather_facts: false
+  become: false
+  tags: monitoring
+  roles:
+    - role: monitoring
+      when: install_monitoring | default(false)

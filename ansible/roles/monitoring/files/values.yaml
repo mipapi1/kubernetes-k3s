@@ -1,0 +1,170 @@
+# Helm values for the victoria-metrics-k8s-stack chart (version pinned in
+# ../defaults/main.yml). Only what differs from the chart defaults; full reference:
+#   helm show values vm/victoria-metrics-k8s-stack --version <monitoring_chart_version>
+#
+# vmagent scrapes everything (nodes, kubelet, kube-state-metrics, the extra targets in
+# scrapes.yaml) -> VMSingle stores it -> Grafana shows it; vmalert evaluates the alert
+# rules -> Alertmanager sends them (alertmanager.yaml in external-secrets.yaml).
+
+# Short resource names (vmsingle-vm, vmagent-vm, vm-grafana, ...)
+fullnameOverride: vm
+
+victoria-metrics-operator:
+  operator:
+    # Nothing here uses prometheus-operator objects
+    disable_prometheus_converter: true
+
+vmsingle:
+  spec:
+    retentionPeriod: 30d
+    storage:
+      resources:
+        requests: {storage: 15Gi}
+    # Metrics history isn't worth a nightly NAS backup (and VictoriaMetrics rewrites
+    # most blocks every day, so incremental backups wouldn't stay small). A recurring-job
+    # group without jobs takes the volume out of Longhorn's "default" backup group.
+    storageMetadata:
+      labels:
+        recurring-job.longhorn.io/source: enabled
+        recurring-job-group.longhorn.io/no-backup: enabled
+    resources:
+      requests: {cpu: 50m, memory: 256Mi}
+      limits: {memory: 1Gi}
+
+vmagent:
+  spec:
+    scrapeInterval: 30s
+    externalLabels:
+      cluster: homelab
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 512Mi}
+
+vmalert:
+  spec:
+    resources:
+      requests: {cpu: 10m, memory: 64Mi}
+      limits: {memory: 256Mi}
+
+alertmanager:
+  spec:
+    # Built from Vault (ntfy topic, SMTP password) by ESO, see external-secrets.yaml
+    configSecret: alertmanager-config
+    resources:
+      requests: {cpu: 5m, memory: 32Mi}
+      limits: {memory: 128Mi}
+
+# Only the built-in Prometheus datasource: the VictoriaMetrics plugin datasource would be
+# downloaded from the internet on every Grafana start
+defaultDatasources:
+  victoriametrics:
+    datasources:
+      - name: VictoriaMetrics
+        type: prometheus
+        access: proxy
+        uid: VictoriaMetrics
+        isDefault: true
+
+grafana:
+  # https://grafana.agathla.com -> HAProxy (TLS) -> Traefik -> Authelia login (2FA) ->
+  # Grafana. Group `admins` gets in (Authelia's *.agathla.com rule).
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.middlewares: monitoring-authelia@kubernetescrd
+    hosts: [grafana.agathla.com]
+  grafana.ini:
+    server:
+      root_url: https://grafana.agathla.com
+    # No Grafana login: Authelia's forwardAuth puts the signed-in user into Remote-User
+    # (Traefik overwrites whatever the client sent), and Grafana trusts that header. Only
+    # Traefik (and vmagent, for /metrics) may reach Grafana: grafana.yaml NetworkPolicy.
+    auth:
+      disable_login_form: true
+      disable_signout_menu: true
+    auth.proxy:
+      enabled: true
+      header_name: Remote-User
+      header_property: username
+      auto_sign_up: true
+      headers: "Email:Remote-Email Name:Remote-Name"
+    users:
+      allow_sign_up: false
+      # Everyone Authelia lets in is in group admins. If a non-admin group is ever given
+      # grafana (authelia_apps), lower this to Viewer.
+      auto_assign_org_role: Admin
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+      check_for_plugin_updates: false
+    news:
+      news_feed_enabled: false
+  # Dashboards and users made in the UI survive restarts (provisioned dashboards come
+  # from ConfigMaps either way)
+  persistence:
+    enabled: true
+    size: 1Gi
+  deploymentStrategy:
+    type: Recreate
+  testFramework:
+    enabled: false
+  resources:
+    requests: {cpu: 20m, memory: 128Mi}
+    limits: {memory: 512Mi}
+
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 24Mi}
+    limits: {memory: 64Mi}
+
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 192Mi}
+
+# k3s runs everything in one process, so the kubelet's /metrics also carries the API
+# server's metrics (~145k series, already scraped by the apiserver job). Keep only the
+# kubelet's own. The first three entries are the chart's defaults (the list replaces them).
+kubelet:
+  vmScrape:
+    spec:
+      metricRelabelConfigs:
+        - action: labeldrop
+          regex: (uid)
+        - action: labeldrop
+          regex: (id|name)
+        - action: drop
+          source_labels: [__name__]
+          regex: (rest_client_request_duration_seconds_bucket|rest_client_request_duration_seconds_sum|rest_client_request_duration_seconds_count)
+        - action: drop
+          source_labels: [__name__]
+          regex: (apiserver|apiextensions|aggregator|admission|authentication|authorization|etcd|field_validation|flowcontrol|kubeproxy|lasso|rest_client|scheduler|watch|workqueue)_.*
+
+# The API server's biggest histograms that no rule or dashboard here uses (~30k series).
+# Kept: apiserver_request_(sli_)duration (SLO alerts) and etcd_request_duration (how
+# slow etcd is, as the API server sees it).
+kubeApiServer:
+  vmScrape:
+    spec:
+      endpoints:
+        - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+          port: https
+          scheme: https
+          tlsConfig:
+            caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            serverName: kubernetes
+          metricRelabelConfigs:
+            - action: drop
+              source_labels: [__name__]
+              regex: apiserver_(watch_list_duration_seconds|request_body_size_bytes|watch_cache_read_wait_seconds|response_sizes|watch_events_sizes)_bucket
+
+# k3s runs the scheduler, controller-manager and etcd inside the k3s process with their
+# metrics on 127.0.0.1 only, so they can't be scraped (exposing them means changing k3s
+# flags and restarting every server). Their dashboards and alerts are off with them.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false

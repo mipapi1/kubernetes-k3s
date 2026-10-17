@@ -7,11 +7,11 @@ kubernetes-k3s/
 ├── apps/                  GitOps: each folder = one app, deployed by Argo CD
 └── ansible/
     ├── requirements.yml   pinned collections, incl. upstream k3s-io/k3s-ansible (k3s.orchestration)
-    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets, CloudNativePG, Forgejo
+    ├── site.yml           NFS prep → upstream k3s install → NFS CSI, Longhorn, Argo CD, External Secrets, CloudNativePG, Forgejo, Authelia, monitoring
     ├── inventory.yml      cluster hosts and k3s settings
     ├── group_vars/        secrets looked up from Vault
     ├── manifests/         applied by k3s itself (Traefik config, CoreDNS override for *.agathla.com)
-    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, cert_manager)
+    ├── roles/             this repo's own roles (nfs, nfs_csi, longhorn, argocd, external_secrets, cloudnative_pg, forgejo, authelia, monitoring, cert_manager)
     └── deploy.sh
 ```
 
@@ -108,7 +108,7 @@ vault write auth/kubernetes/role/external-secrets \
 ```
 
 Re-deploy a single add-on without re-running the k3s install (which restarts every server):
-`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`).
+`./deploy.sh --tags external_secrets` (tags: `nfs`, `nfs_csi`, `longhorn`, `argocd`, `external_secrets`, `cloudnative_pg`, `forgejo`, `authelia`, `monitoring`).
 
 ## Forgejo (git server)
 
@@ -163,6 +163,28 @@ first login (code by email).
 |---|---|
 | `secret/k8s/authelia/main` | `jwt-secret`, `session-secret`, `storage-encryption-key` (generated), `smtp-password` (Proton SMTP token) |
 | `secret/k8s/authelia/users` | `users` (JSON, managed by `authelia-user.sh`) |
+
+## Monitoring (VictoriaMetrics + Grafana)
+
+https://grafana.agathla.com, installed by the `monitoring` role (`./deploy.sh --tags monitoring`),
+behind Authelia (group `admins`, 2FA). Grafana has no login of its own: it trusts the user
+Authelia passes along (`auth.proxy`), so a NetworkPolicy lets only Traefik reach it.
+
+- **What's collected** (every 30 s, kept 30 days, not backed up): nodes, pods and containers,
+  Kubernetes objects, the API server, CoreDNS, Traefik, Longhorn, and Proxmox (hosts, VMs,
+  storage, via `pve-exporter` with the read-only Homepage token). OPNsense once its
+  `os-node_exporter` plugin is installed and `monitoring_opnsense_node_exporter` is on.
+  k3s keeps the scheduler, controller-manager and etcd metrics on 127.0.0.1, so those aren't.
+- **Dashboards:** the chart's set (Kubernetes views, Node Exporter Full, VictoriaMetrics), plus
+  Proxmox, Longhorn and Traefik from `roles/monitoring/files/dashboards/`. Dashboards made in
+  the UI are kept (Grafana has a small volume).
+- **Alerts:** the chart's Kubernetes/node rules plus `files/rules.yaml` (Longhorn volumes and
+  disks, Proxmox hosts, VMs, storage incl. the NAS share). Alertmanager sends warnings and
+  criticals to the same ntfy topic and email as Uptime Kuma, repeated every 12 h while firing;
+  `info` alerts only show in Grafana (Alerting → Alert rules / the Alertmanager datasource).
+  Uptime Kuma stays the up/down check for each service.
+- **Secrets:** none of its own; it reads `secret/k8s/uptime/ntfy`, `secret/k8s/uptime/smtp`
+  and `secret/k8s/homepage/proxmox` (see `roles/monitoring/files/external-secrets.yaml`).
 
 ## Apps (GitOps with Argo CD)
 

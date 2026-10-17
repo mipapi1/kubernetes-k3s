@@ -1,0 +1,36 @@
+# Login for Grafana (the Ingress itself comes from the chart, see values.yaml).
+# Needs DNS grafana.agathla.com -> 10.0.20.10.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authelia
+  namespace: monitoring
+spec:
+  forwardAuth:
+    address: http://authelia.authelia.svc.cluster.local:9091/api/authz/forward-auth
+    trustForwardHeader: true
+    authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
+---
+# Grafana trusts the Remote-User header (auth.proxy), so nothing but Traefik may reach
+# it, plus vmagent for its /metrics. Kubelet probes come from the nodes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: grafana}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: traefik}
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: vmagent}
+    - from:
+        - ipBlock: {cidr: 10.0.20.11/32}
+        - ipBlock: {cidr: 10.0.20.12/32}
+        - ipBlock: {cidr: 10.0.20.13/32}

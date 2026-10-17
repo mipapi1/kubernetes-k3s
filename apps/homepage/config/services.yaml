@@ -4,7 +4,7 @@
 - Infrastructure:
     - proxmox01:
         icon: proxmox.png
-        href: https://10.0.10.11:8006
+        href: https://proxmox01.agathla.com
         widget:
           type: proxmox
           url: https://10.0.10.11:8006
@@ -13,7 +13,7 @@
           node: proxmox01
     - proxmox02:
         icon: proxmox.png
-        href: https://10.0.10.12:8006
+        href: https://proxmox02.agathla.com
         widget:
           type: proxmox
           url: https://10.0.10.11:8006
@@ -22,7 +22,7 @@
           node: proxmox02
     - proxmox03:
         icon: proxmox.png
-        href: https://10.0.10.13:8006
+        href: https://proxmox03.agathla.com
         widget:
           type: proxmox
           url: https://10.0.10.11:8006
@@ -64,6 +64,13 @@
         description: Up/down alerts
         namespace: uptime
         podSelector: app=uptime-kuma
+    - Grafana:
+        icon: grafana.png
+        href: https://grafana.agathla.com
+        description: Metrics and alerts
+        # No siteMonitor: only Traefik may reach Grafana (it trusts the login header)
+        namespace: monitoring
+        podSelector: app.kubernetes.io/name=grafana
 
 - Photos:
     - Ente:
