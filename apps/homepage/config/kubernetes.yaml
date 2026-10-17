@@ -1,0 +1,4 @@
+# https://gethomepage.dev/configs/kubernetes/
+# In-cluster: the pod's service account (rbac.yaml). Services are listed by hand in
+# services.yaml, not discovered from Ingress annotations.
+mode: cluster

@@ -1,0 +1,30 @@
+# https://gethomepage.dev/configs/settings/
+title: Homelab
+favicon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/homepage.png
+theme: dark
+color: slate
+headerStyle: boxed
+statusStyle: dot
+hideVersion: true
+useEqualHeights: true
+target: _blank
+providers:
+  # Longhorn widget (widgets.yaml); the API needs no login inside the cluster
+  longhorn:
+    url: http://longhorn-frontend.longhorn-system.svc
+layout:
+  Infrastructure:
+    style: row
+    columns: 3
+  Platform:
+    style: row
+    columns: 4
+  Photos:
+    style: row
+    columns: 3
+  Media:
+    style: row
+    columns: 4
+  Media admin:
+    style: row
+    columns: 4

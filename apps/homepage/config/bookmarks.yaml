@@ -1,0 +1,8 @@
+# https://gethomepage.dev/configs/bookmarks/
+- Outside the homelab:
+    - healthchecks.io:
+        - href: https://healthchecks.io
+    - Cloudflare:
+        - href: https://dash.cloudflare.com
+    - GitHub:
+        - href: https://github.com/mipapi1

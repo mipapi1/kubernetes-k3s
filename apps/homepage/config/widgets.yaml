@@ -1,0 +1,24 @@
+# https://gethomepage.dev/widgets/ (top bar)
+- kubernetes:
+    cluster:
+      show: true
+      cpu: true
+      memory: true
+      showLabel: true
+      label: k3s
+    nodes:
+      show: true
+      cpu: true
+      memory: true
+      showLabel: true
+- longhorn:
+    # URL: settings.yaml providers.longhorn
+    expanded: true
+    total: true
+    labels: true
+    nodes: true
+- datetime:
+    text_size: md
+    format:
+      dateStyle: medium
+      timeStyle: short

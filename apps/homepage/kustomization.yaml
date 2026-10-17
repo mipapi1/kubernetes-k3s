@@ -1,0 +1,19 @@
+# Homelab dashboard: Homepage (https://gethomepage.dev). See README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - rbac.yaml
+  - external-secret.yaml
+  - homepage.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: homepage-config
+    files:
+      - config/settings.yaml
+      - config/services.yaml
+      - config/widgets.yaml
+      - config/bookmarks.yaml
+      - config/kubernetes.yaml
+      - config/docker.yaml
+      - config/custom.css
+      - config/custom.js

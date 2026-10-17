@@ -1,0 +1,50 @@
+# https://home.agathla.com -> HAProxy (TLS) -> Traefik -> Authelia login (2FA) -> Homepage
+# Needs DNS home.agathla.com -> 10.0.20.10. Group `admins` gets in (Authelia's
+# *.agathla.com rule); add `homepage` to authelia_apps to give it to someone else.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authelia
+spec:
+  forwardAuth:
+    address: http://authelia.authelia.svc.cluster.local:9091/api/authz/forward-auth
+    trustForwardHeader: true
+    authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homepage
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homepage-authelia@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: home.agathla.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: homepage, port: {number: 3000}}
+---
+# Homepage has no login of its own (Authelia does it): only Traefik may reach it;
+# kubelet probes come from the nodes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: homepage-ingress
+spec:
+  podSelector:
+    matchLabels: {app: homepage}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: traefik}
+    - from:
+        - ipBlock: {cidr: 10.0.20.11/32}
+        - ipBlock: {cidr: 10.0.20.12/32}
+        - ipBlock: {cidr: 10.0.20.13/32}

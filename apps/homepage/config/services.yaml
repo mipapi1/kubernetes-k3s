@@ -1,0 +1,135 @@
+# https://gethomepage.dev/configs/services/
+# siteMonitor: Homepage checks the URL itself (status dot). namespace + podSelector:
+# pod status, CPU and memory from the cluster (rbac.yaml).
+- Infrastructure:
+    - proxmox01:
+        icon: proxmox.png
+        href: https://10.0.10.11:8006
+        widget:
+          type: proxmox
+          url: https://10.0.10.11:8006
+          username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
+          password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
+          node: proxmox01
+    - proxmox02:
+        icon: proxmox.png
+        href: https://10.0.10.12:8006
+        widget:
+          type: proxmox
+          url: https://10.0.10.11:8006
+          username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
+          password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
+          node: proxmox02
+    - proxmox03:
+        icon: proxmox.png
+        href: https://10.0.10.13:8006
+        widget:
+          type: proxmox
+          url: https://10.0.10.11:8006
+          username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
+          password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
+          node: proxmox03
+
+- Platform:
+    - Argo CD:
+        icon: argo-cd.png
+        href: https://argocd.agathla.com
+        description: GitOps
+        siteMonitor: http://argocd-server.argocd.svc/healthz
+        namespace: argocd
+        podSelector: app.kubernetes.io/name=argocd-server
+    - Forgejo:
+        icon: forgejo.png
+        href: https://git.agathla.com
+        description: Git
+        siteMonitor: https://git.agathla.com/api/healthz
+        namespace: forgejo
+        podSelector: app=forgejo
+    - Vault:
+        icon: vault.png
+        href: https://vault.agathla.com
+        description: Secrets (vault-prod02)
+        # 503 when sealed
+        siteMonitor: https://vault.agathla.com/v1/sys/health
+    - Authelia:
+        icon: authelia.png
+        href: https://auth.agathla.com
+        description: Login
+        siteMonitor: https://auth.agathla.com/api/health
+        namespace: authelia
+        podSelector: app=authelia
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: https://uptime.agathla.com
+        description: Up/down alerts
+        namespace: uptime
+        podSelector: app=uptime-kuma
+
+- Photos:
+    - Ente:
+        icon: ente-photos.png
+        href: https://ente.agathla.com
+        description: Photos
+        siteMonitor: https://ente.agathla.com/ping
+        namespace: ente
+        podSelector: app=museum
+    - Private Ente:
+        icon: ente-photos.png
+        href: https://prvtente.agathla.com
+        description: Private photos
+        siteMonitor: https://prvtente.agathla.com/ping
+        namespace: prvtente
+        podSelector: app=museum
+    - Ente admin:
+        icon: ente-photos.png
+        href: https://ente-admin.agathla.com
+        description: Users and storage
+        namespace: ente-admin
+        podSelector: app=ente-admin
+
+- Media:
+    - Plex:
+        icon: plex.png
+        href: https://plex.agathla.com
+        siteMonitor: https://plex.agathla.com/identity
+        namespace: media
+        podSelector: app=plex
+    - Seerr:
+        icon: jellyseerr.png
+        href: https://jellyseerr.agathla.com
+        description: Requests
+        siteMonitor: https://jellyseerr.agathla.com/api/v1/status
+    - Tautulli:
+        icon: tautulli.png
+        href: https://tautulli.agathla.com
+        description: Plex stats
+        namespace: media
+        podSelector: app=tautulli
+    - VPN stack:
+        icon: gluetun.png
+        description: Download clients and indexers behind the VPN
+        namespace: media
+        podSelector: app=vpn-stack
+
+- Media admin:
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: https://qbittorrent.agathla.com
+    - NZBGet:
+        icon: nzbget.png
+        href: https://nzbget.agathla.com
+    - Prowlarr:
+        icon: prowlarr.png
+        href: https://prowlarr.agathla.com
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.agathla.com
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.agathla.com
+    - Lidarr:
+        icon: lidarr.png
+        href: https://lidarr.agathla.com
+    - Bazarr:
+        icon: bazarr.png
+        href: https://bazarr.agathla.com

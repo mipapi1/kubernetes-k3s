@@ -1,0 +1,70 @@
+# Homepage: one page with every service, its status and live numbers. Stateless: the
+# config is the configmap (config/), credentials come from Vault (external-secret.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: homepage}
+  template:
+    metadata:
+      labels: {app: homepage}
+    spec:
+      serviceAccountName: homepage
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: homepage
+          # https://github.com/gethomepage/homepage/releases
+          image: ghcr.io/gethomepage/homepage:v2.4.0@sha256:643bd0be730d40f69d58028a55d1a896739333e8815786df42bc97f109ecbe61
+          env:
+            # Requests with any other Host header are refused
+            - {name: HOMEPAGE_ALLOWED_HOSTS, value: home.agathla.com}
+            - {name: TZ, value: America/New_York}
+          envFrom:
+            - secretRef: {name: homepage}
+          ports:
+            - {name: http, containerPort: 3000}
+          startupProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 20m, memory: 128Mi}
+            limits: {memory: 384Mi}
+          volumeMounts:
+            # One file each: Homepage writes logs next to them (logs/ below)
+            - {name: config, mountPath: /app/config/settings.yaml, subPath: settings.yaml}
+            - {name: config, mountPath: /app/config/services.yaml, subPath: services.yaml}
+            - {name: config, mountPath: /app/config/widgets.yaml, subPath: widgets.yaml}
+            - {name: config, mountPath: /app/config/bookmarks.yaml, subPath: bookmarks.yaml}
+            - {name: config, mountPath: /app/config/kubernetes.yaml, subPath: kubernetes.yaml}
+            - {name: config, mountPath: /app/config/docker.yaml, subPath: docker.yaml}
+            - {name: config, mountPath: /app/config/custom.css, subPath: custom.css}
+            - {name: config, mountPath: /app/config/custom.js, subPath: custom.js}
+            - {name: logs, mountPath: /app/config/logs}
+      volumes:
+        - name: config
+          configMap: {name: homepage-config}
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+spec:
+  selector: {app: homepage}
+  ports:
+    - {name: http, port: 3000, targetPort: http}
